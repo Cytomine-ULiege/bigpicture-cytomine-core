@@ -18,7 +18,6 @@ package be.cytomine.api.controller.meta;
 
 import be.cytomine.api.controller.RestCytomineController;
 import be.cytomine.service.search.MetadataSearchService;
-import be.cytomine.utils.JsonObject;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -31,12 +30,6 @@ import org.springframework.web.bind.annotation.*;
 public class RestMetadataController extends RestCytomineController {
 
     private final MetadataSearchService metadataSearchService;
-
-    @PostMapping("search.json")
-    public ResponseEntity<String> search(@RequestBody JsonObject body) {
-        log.debug("Rest request to search image using metadata:" + body);
-        return responseSuccess(metadataSearchService.search(body));
-    }
 
     @GetMapping("search/autocomplete.json")
     public ResponseEntity<String> autocomplete(

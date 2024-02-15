@@ -109,4 +109,19 @@ public class StringUtils {
         }
         return sb.toString();
     }
+
+    public static String encodeString(String value) {
+        return value.replaceAll("[\\[+\\]+:{}^~?\\\\/()><=\"!]", "\\\\$0");
+    }
+
+    public static boolean areIntegers(List<String> values) {
+        try {
+            for (String str : values) {
+                Integer.parseInt(str);
+            }
+            return true;
+        } catch (NumberFormatException e) {
+            return false;
+        }
+    }
 }

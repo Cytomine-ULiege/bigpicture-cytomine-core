@@ -31,13 +31,11 @@ import be.cytomine.repository.image.UploadedFileRepository;
 import be.cytomine.service.CurrentUserService;
 import be.cytomine.service.ModelService;
 import be.cytomine.service.UrlApi;
+import be.cytomine.service.search.MetadataSearchService;
 import be.cytomine.service.security.SecurityACLService;
 import be.cytomine.service.utils.TaskService;
 import be.cytomine.utils.*;
-import be.cytomine.utils.filters.SQLSearchParameter;
-import be.cytomine.utils.filters.SearchOperation;
-import be.cytomine.utils.filters.SearchParameterEntry;
-import be.cytomine.utils.filters.SearchParameterProcessed;
+import be.cytomine.utils.filters.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -88,6 +86,9 @@ public class UploadedFileService extends ModelService {
     private CompanionFileRepository companionFileRepository;
 
     @Autowired
+    private MetadataSearchService metadataSearchService;
+
+    @Autowired
     private TaskService taskService;
 
 
@@ -120,6 +121,7 @@ public class UploadedFileService extends ModelService {
         searchParameters.stream().filter(x -> x.getProperty().equals("storage")).findFirst().ifPresent(x -> x.setOperation(SearchOperation.in));
         searchParameters.stream().filter(x -> x.getProperty().equals("user")).findFirst().ifPresent(x -> x.setOperation(SearchOperation.in));
 
+        SearchParameterEntry parameterFilters = SearchParametersUtils.getMetadataFilters(searchParameters);
         List<SearchParameterEntry> validatedSearchParameters = SQLSearchParameter.getDomainAssociatedSearchParameters(UploadedFile.class, searchParameters, getEntityManager());
 
         for (SearchParameterEntry validatedSearchParameter : validatedSearchParameters) {
@@ -221,6 +223,7 @@ public class UploadedFileService extends ModelService {
         }
         List<Tuple> resultList = query.getResultList();
         List<Map<String, Object>> results = new ArrayList<>();
+        Map<String, List<Long>> imageIds = new HashMap<>();
         for (Tuple rowResult : resultList) {
             Map<String, Object> result = new HashMap<>();
             for (TupleElement<?> element : rowResult.getElements()) {
@@ -234,9 +237,18 @@ public class UploadedFileService extends ModelService {
             result.put("thumbURL",(result.get("image")!=null) ? UrlApi.getAbstractImageThumbUrl((Long)result.get("image"), "png") : null);
             result.put("isArchive", UploadedFile.ARCHIVE_FORMATS.contains(result.get("contentType")));
             results.add(result);
-        }
-        return results;
 
+            imageIds
+                .computeIfAbsent((String) result.get("contentType"), k -> new ArrayList<>())
+                .add((Long) result.get("image"));
+        }
+
+        /* Add elasticsearch filtering */
+        Map<String, Map<String, Object>> filters = SearchParametersUtils.extractFilters(parameterFilters);
+        List<Long> resultIDs = metadataSearchService.search(imageIds, filters);
+        results.removeIf(map -> !resultIDs.contains((Long) map.get("image")));
+
+        return results;
     }
 
 

@@ -17,7 +17,7 @@ package be.cytomine.service.search;
  */
 
 import be.cytomine.domain.meta.Property;
-import be.cytomine.utils.JsonObject;
+import be.cytomine.utils.StringUtils;
 import co.elastic.clients.elasticsearch._types.FieldValue;
 import co.elastic.clients.elasticsearch._types.aggregations.Aggregation;
 import co.elastic.clients.elasticsearch._types.aggregations.LongTermsBucket;
@@ -46,11 +46,7 @@ public class MetadataSearchService {
         this.operations = operations;
     }
 
-    private String encodeString(String value) {
-        return value.replaceAll("[\\[+\\]+:{}^~?\\\\/()><=\"!]", "\\\\$0");
-    }
-
-    private Query buildRangeQuery(List<Integer> bounds, String value) {
+    private Query buildRangeQuery(List<String> bounds, String value) {
         Query matchKey = MatchQuery.of(mq -> mq
                 .field("key")
                 .query(value))
@@ -70,7 +66,7 @@ public class MetadataSearchService {
 
     private Query buildStringQuery(String key, String value, Query byDomainId) {
         Query byValue = QueryStringQuery.of(qsq -> qsq
-                .query(String.format("%s*", encodeString(value)))
+                .query(String.format("%s*", StringUtils.encodeString(value)))
                 .defaultField("value"))
             ._toQuery();
 
@@ -86,27 +82,46 @@ public class MetadataSearchService {
         )._toQuery();
     }
 
-    public List<Long> search(JsonObject body) {
-        List<FieldValue> imageIDs = ((List<Integer>) body.get("imageIds"))
+    private Query buildQuery(List<Long> ids, Map<String, Object> filters) {
+        List<FieldValue> imageIDs = ids
             .stream()
             .map(FieldValue::of)
             .collect(Collectors.toList());
-        TermsQueryField termsQueryField = new TermsQueryField.Builder().value(imageIDs).build();
+        TermsQueryField termsQueryField = TermsQueryField.of(tqf -> tqf.value(imageIDs));
         Query byDomainId = TermsQuery.of(ts -> ts.field("domain_ident").terms(termsQueryField))._toQuery();
 
         List<Query> subqueries = new ArrayList<>();
-        HashMap<String, Object> filters = (HashMap) body.get("filters");
         for (Map.Entry<String, Object> entry : filters.entrySet()) {
-            if (entry.getValue().toString().startsWith("[")) {
-                subqueries.add(buildRangeQuery((List<Integer>) entry.getValue(), entry.getKey()));
+            String key = entry.getKey();
+            Object value = entry.getValue();
+
+            if (value instanceof List<?>) {
+                subqueries.add(buildRangeQuery((List<String>) value, key));
             } else {
-                subqueries.add(buildStringQuery(entry.getKey(), (String) entry.getValue(), byDomainId));
+                subqueries.add(buildStringQuery(key, (String) value, byDomainId));
             }
         }
 
+        if (filters.isEmpty()) {
+            return BoolQuery.of(b -> b
+                .must(byDomainId)
+                .must(MatchAllQuery.of(maq -> maq)._toQuery())
+            )._toQuery();
+        }
+
+        return BoolQuery.of(b -> b.should(subqueries))._toQuery();
+    }
+
+    public List<Long> search(Map<String, List<Long>> ids, Map<String, Map<String, Object>> filters) {
+        List<Query> queries = ids
+            .entrySet()
+            .stream()
+            .map(it -> buildQuery(it.getValue(), filters.getOrDefault(it.getKey(), new HashMap<>())))
+            .collect(Collectors.toList());
+
         NativeQuery query = NativeQuery.builder()
             .withAggregation("domain_id", Aggregation.of(a -> a.terms(ta -> ta.field("domain_ident"))))
-            .withQuery(q -> q.bool(b -> b.should(subqueries)))
+            .withQuery(q -> q.bool(b -> b.should(queries)))
             .build();
         log.debug(String.format("Elasticsearch %s", query.getQuery()));
 
@@ -119,7 +134,7 @@ public class MetadataSearchService {
 
         ElasticsearchAggregations aggregations = (ElasticsearchAggregations) searchHits.getAggregations();
 
-        Map<String, Long> buckets = aggregations
+        Set<Long> foundIds = aggregations
             .aggregations()
             .get(0)
             .aggregation()
@@ -128,16 +143,16 @@ public class MetadataSearchService {
             .buckets()
             .array()
             .stream()
-            .collect(Collectors.toMap(LongTermsBucket::key, LongTermsBucket::docCount));
+            .map(LongTermsBucket::key)
+            .map(Long::valueOf)
+            .collect(Collectors.toSet());
 
-        List<Long> IDs = new ArrayList<>();
-        for (Map.Entry<String, Long> entry : buckets.entrySet()) {
-            if (entry.getValue() == filters.size()) {
-                IDs.add(Long.valueOf(entry.getKey()));
-            }
-        }
-
-        return IDs;
+        return ids
+            .values()
+            .stream()
+            .flatMap(Collection::stream)
+            .filter(foundIds::contains)
+            .collect(Collectors.toList());
     }
 
     public List<String> searchAutoCompletion(String key, String search) {
@@ -148,7 +163,7 @@ public class MetadataSearchService {
 
         Query autocomplete = QueryStringQuery.of(qsq -> qsq
                 .defaultField("value")
-                .query(String.format("%s*", encodeString(search))))
+                .query(String.format("%s*", StringUtils.encodeString(search))))
             ._toQuery();
 
         NativeQuery query = NativeQuery.builder()
@@ -163,7 +178,11 @@ public class MetadataSearchService {
             IndexCoordinates.of("properties")
         );
 
-        Set<String> unique = new HashSet<>(searchHits.stream().map(hit -> hit.getContent().getValue()).toList());
-        return unique.stream().sorted().toList();
+        return searchHits
+            .stream()
+            .map(hit -> hit.getContent().getValue())
+            .distinct()
+            .sorted()
+            .collect(Collectors.toList());
     }
 }

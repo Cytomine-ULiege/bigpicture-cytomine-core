@@ -17,14 +17,15 @@ package be.cytomine.utils.filters;
 */
 
 import be.cytomine.api.controller.utils.RequestParams;
+import be.cytomine.utils.StringUtils;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang3.EnumUtils;
 
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class SearchParametersUtils {
@@ -83,5 +84,38 @@ public class SearchParametersUtils {
             }
         }
         return searchParameterEntries;
+    }
+
+    public static SearchParameterEntry getMetadataFilters(List<SearchParameterEntry> searchParameters) {
+        SearchParameterEntry parameterFilters = searchParameters
+            .stream()
+            .filter(parameter -> parameter.getProperty().equals("filters"))
+            .findFirst()
+            .orElse(new SearchParameterEntry("filters", SearchOperation.in, "{}"));
+
+        searchParameters.remove(parameterFilters);
+
+        return parameterFilters;
+    }
+
+    public static Map<String, Map<String, Object>> extractFilters(SearchParameterEntry parameterFilters) {
+        Map<String, Map<String, Object>> filters = new HashMap<>();
+        try {
+            filters = new ObjectMapper().readValue((String) parameterFilters.getValue(), new TypeReference<>() {});
+            filters.values().forEach(
+                innerMap ->
+                    innerMap.entrySet().stream()
+                        .filter(entry -> entry.getValue() instanceof String)
+                        .filter(entry -> ((String) entry.getValue()).contains(","))
+                        .forEach(entry -> {
+                            List<String> values = List.of(((String) entry.getValue()).split(","));
+                            if (StringUtils.areIntegers(values)) {
+                                entry.setValue(values);
+                            }
+                        })
+            );
+        } catch (JsonProcessingException ignored) {}
+
+        return filters;
     }
 }

@@ -20,7 +20,10 @@ import be.cytomine.domain.CytomineDomain;
 import be.cytomine.domain.command.*;
 import be.cytomine.domain.image.*;
 import be.cytomine.domain.meta.Property;
-import be.cytomine.domain.ontology.*;
+import be.cytomine.domain.ontology.AlgoAnnotation;
+import be.cytomine.domain.ontology.ReviewedAnnotation;
+import be.cytomine.domain.ontology.Track;
+import be.cytomine.domain.ontology.UserAnnotation;
 import be.cytomine.domain.project.Project;
 import be.cytomine.domain.security.SecUser;
 import be.cytomine.exceptions.*;
@@ -29,7 +32,10 @@ import be.cytomine.repository.image.ImageInstanceRepository;
 import be.cytomine.repository.image.NestedImageInstanceRepository;
 import be.cytomine.repository.image.SliceInstanceRepository;
 import be.cytomine.repository.meta.PropertyRepository;
-import be.cytomine.repository.ontology.*;
+import be.cytomine.repository.ontology.AlgoAnnotationRepository;
+import be.cytomine.repository.ontology.AnnotationTrackRepository;
+import be.cytomine.repository.ontology.ReviewedAnnotationRepository;
+import be.cytomine.repository.ontology.UserAnnotationRepository;
 import be.cytomine.repositorynosql.social.AnnotationActionRepository;
 import be.cytomine.repositorynosql.social.LastUserPositionRepository;
 import be.cytomine.repositorynosql.social.PersistentImageConsultationRepository;
@@ -39,19 +45,18 @@ import be.cytomine.service.CurrentUserService;
 import be.cytomine.service.ModelService;
 import be.cytomine.service.dto.ImageInstanceBounds;
 import be.cytomine.service.meta.PropertyService;
-import be.cytomine.service.middleware.ImageServerService;
-import be.cytomine.service.ontology.*;
+import be.cytomine.service.ontology.AlgoAnnotationService;
+import be.cytomine.service.ontology.ReviewedAnnotationService;
+import be.cytomine.service.ontology.TrackService;
+import be.cytomine.service.ontology.UserAnnotationService;
 import be.cytomine.service.search.ImageSearchExtension;
+import be.cytomine.service.search.MetadataSearchService;
 import be.cytomine.service.security.SecurityACLService;
 import be.cytomine.utils.*;
-import be.cytomine.utils.filters.SQLSearchParameter;
-import be.cytomine.utils.filters.SearchOperation;
-import be.cytomine.utils.filters.SearchParameterEntry;
-import be.cytomine.utils.filters.SearchParameterProcessed;
+import be.cytomine.utils.filters.*;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.Accumulators;
-import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.bson.Document;
 import org.bson.conversions.Bson;
@@ -59,8 +64,6 @@ import org.hibernate.Session;
 import org.hibernate.query.NativeQuery;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ReflectionUtils;
 
@@ -143,6 +146,9 @@ public class ImageInstanceService extends ModelService {
 
     @Autowired
     private PersistentImageConsultationRepository persistentImageConsultationRepository;
+
+    @Autowired
+    private MetadataSearchService metadataSearchService;
 
     @Autowired
     PropertyService propertyService;
@@ -485,6 +491,7 @@ public class ImageInstanceService extends ModelService {
         if (sortedProperty==null) throw new CytomineMethodNotYetImplementedException("ImageInstance list sorted by " + sortColumn + " is not implemented");
         sortedProperty = SQLSearchParameter.fieldNameToSQL(sortedProperty);
 
+        SearchParameterEntry parameterFilters = SearchParametersUtils.getMetadataFilters(searchParameters);
         List<SearchParameterEntry> validatedSearchParameters = getDomainAssociatedSearchParameters(searchParameters, project.getBlindMode());
 
         validatedSearchParameters.stream().filter(x -> !x.getProperty().contains(".")).forEach(searchParameterEntry -> {
@@ -600,6 +607,7 @@ public class ImageInstanceService extends ModelService {
         }
         List<Tuple> resultList = query.getResultList();
         List<Map<String, Object>> results = new ArrayList<>();
+        Map<String, List<Long>> imageIds = new HashMap<>();
         for (Tuple rowResult : resultList) {
             JsonObject result = new JsonObject();
             for (TupleElement<?> element : rowResult.getElements()) {
@@ -627,6 +635,10 @@ public class ImageInstanceService extends ModelService {
             object.put("projectBlind", result.get("projectBlind"));
             object.put("projectName", result.get("projectName"));
             results.add(object);
+
+            imageIds
+                .computeIfAbsent((String) object.get("contentType"), k -> new ArrayList<>())
+                .add((Long) result.get("id"));
         }
 
         request = "SELECT COUNT(DISTINCT " + imageInstanceAlias + ".id) " + from + where + search;
@@ -635,6 +647,11 @@ public class ImageInstanceService extends ModelService {
             query.setParameter(entry.getKey(), entry.getValue());
         }
         long count = ((BigInteger)query.getResultList().get(0)).longValue();
+
+        /* Add elasticsearch filtering */
+        Map<String, Map<String, Object>> filters = SearchParametersUtils.extractFilters(parameterFilters);
+        List<Long> resultIDs = metadataSearchService.search(imageIds, filters);
+        results.removeIf(map -> !resultIDs.contains((Long) map.get("id")));
 
         if(light) {
             List<Map<String,Object>> lightResult = new ArrayList<>();
@@ -645,7 +662,6 @@ public class ImageInstanceService extends ModelService {
         }
         Page<Map<String, Object>> page = PageUtils.buildPageFromPageResults(results, max, offset, count);
         return page;
-
     }
 
 
