@@ -65,9 +65,9 @@ public class MetadataSearchService {
     }
 
     private Query buildStringQuery(String key, String value, Query byDomainId) {
-        Query byValue = QueryStringQuery.of(qsq -> qsq
-                .query(String.format("%s*", StringUtils.encodeString(value)))
-                .defaultField("value"))
+        Query byValue = MatchPhrasePrefixQuery.of(q -> q
+                .field("value")
+                .query(StringUtils.encodeString(value)))
             ._toQuery();
 
         Query byKey = QueryStringQuery.of(qsq -> qsq
@@ -133,8 +133,7 @@ public class MetadataSearchService {
         log.debug(String.format("Total hits: %d", searchHits.getTotalHits()));
 
         ElasticsearchAggregations aggregations = (ElasticsearchAggregations) searchHits.getAggregations();
-
-        Set<Long> foundIds = aggregations
+        Map<String, Long> buckets = aggregations
             .aggregations()
             .get(0)
             .aggregation()
@@ -143,8 +142,13 @@ public class MetadataSearchService {
             .buckets()
             .array()
             .stream()
-            .map(LongTermsBucket::key)
-            .map(Long::valueOf)
+            .collect(Collectors.toMap(LongTermsBucket::key, LongTermsBucket::docCount));
+
+        Set<Long> foundIds = buckets
+            .entrySet()
+            .stream()
+            .filter(it -> filters.isEmpty() || it.getValue().equals((long) filters.size()))
+            .map(it -> Long.valueOf(it.getKey()))
             .collect(Collectors.toSet());
 
         return ids
