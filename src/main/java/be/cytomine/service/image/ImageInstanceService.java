@@ -624,12 +624,12 @@ public class ImageInstanceService extends ModelService {
         sort = " ORDER BY " + sortedProperty;
         sort += (sortDirection.equals("desc")) ? " DESC " : " ASC ";
 
-        if (joinAI || joinMime) {
+        if (joinAI) {
             select += ", " + ABSTRACT_IMAGE_COLUMNS_FOR_SEARCH.stream().map(x -> abstractImageAlias + "." + x).collect(Collectors.joining(",")) + " ";
             from += "JOIN abstract_image "+ abstractImageAlias + " ON " + abstractImageAlias + ".id = " + imageInstanceAlias + ".base_image_id ";
         }
         if (joinMime) {
-            select += ", " + mimeAlias + ".content_type ";
+            select += ", " + mimeAlias + ".* ";
             from += "JOIN uploaded_file  " + mimeAlias + " ON " + mimeAlias + ".id = " + abstractImageAlias + ".uploaded_file_id ";
         }
 
