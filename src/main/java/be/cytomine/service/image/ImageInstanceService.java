@@ -279,6 +279,52 @@ public class ImageInstanceService extends ModelService {
         return validParameters;
     }
 
+    private List<Long> getElasticsearchResultIds(
+        String from,
+        String where,
+        String search,
+        Map<String, Map<String, Object>> filters,
+        SearchParameterProcessed conditions
+    ) {
+        /* Get all the image instance ID and their contentType */
+        String request = "SELECT DISTINCT ii.id, mime.content_type " + from;
+
+        if (!from.contains("abstract_image")) {
+            request += "JOIN abstract_image ai ON ai.id = ii.base_image_id ";
+        }
+        if (!from.contains("uploaded_file")) {
+            request += "JOIN uploaded_file mime ON mime.id = ai.uploaded_file_id ";
+        }
+
+        request += where + search;
+
+        log.debug(request);
+
+        Query query = getEntityManager().createNativeQuery(request, Tuple.class);
+        for (Map.Entry<String, Object> entry : conditions.getSqlParameters().entrySet()) {
+            query.setParameter(entry.getKey(), entry.getValue());
+        }
+
+        List<Tuple> resultList = query.getResultList();
+        Map<String, List<Long>> imageIds = new HashMap<>();
+
+        for (Tuple rowResult : resultList) {
+            JsonObject result = new JsonObject();
+
+            for (TupleElement<?> element : rowResult.getElements()) {
+                Object value = rowResult.get(element.getAlias());
+                String alias = SQLUtils.toCamelCase(element.getAlias());
+                result.put(alias, value);
+            }
+
+            imageIds
+                .computeIfAbsent((String) result.get("contentType"), k -> new ArrayList<>())
+                .add(((BigInteger) result.get("id")).longValue());
+        }
+
+        return metadataSearchService.search(imageIds, filters);
+    }
+
     public Page<Map<String, Object>> list(SecUser user, List<SearchParameterEntry> searchParameters) {
         return list(user, searchParameters, "created", "desc", 0L, 0L);
     }
@@ -587,6 +633,14 @@ public class ImageInstanceService extends ModelService {
             from += "JOIN uploaded_file  " + mimeAlias + " ON " + mimeAlias + ".id = " + abstractImageAlias + ".uploaded_file_id ";
         }
 
+        /* Add elasticsearch filtering */
+        Map<String, Map<String, Object>> filters = SearchParametersUtils.extractFilters(parameterFilters);
+        if (!filters.isEmpty()) {
+            List<Long> ids = getElasticsearchResultIds(from, where, search, filters, sqlSearchConditions);
+            String includeIds = ids.stream().map(Object::toString).collect(Collectors.joining(", "));
+            where += " AND " + imageInstanceAlias + ".id IN (" + (includeIds.isEmpty() ? "0" : includeIds) + ")";
+        }
+
         request = select + from + where + search + sort;
         if (max > 0) {
             request += " LIMIT " + max;
@@ -607,7 +661,6 @@ public class ImageInstanceService extends ModelService {
         }
         List<Tuple> resultList = query.getResultList();
         List<Map<String, Object>> results = new ArrayList<>();
-        Map<String, List<Long>> imageIds = new HashMap<>();
         for (Tuple rowResult : resultList) {
             JsonObject result = new JsonObject();
             for (TupleElement<?> element : rowResult.getElements()) {
@@ -635,10 +688,6 @@ public class ImageInstanceService extends ModelService {
             object.put("projectBlind", result.get("projectBlind"));
             object.put("projectName", result.get("projectName"));
             results.add(object);
-
-            imageIds
-                .computeIfAbsent((String) object.get("contentType"), k -> new ArrayList<>())
-                .add((Long) result.get("id"));
         }
 
         request = "SELECT COUNT(DISTINCT " + imageInstanceAlias + ".id) " + from + where + search;
@@ -647,11 +696,6 @@ public class ImageInstanceService extends ModelService {
             query.setParameter(entry.getKey(), entry.getValue());
         }
         long count = ((BigInteger)query.getResultList().get(0)).longValue();
-
-        /* Add elasticsearch filtering */
-        Map<String, Map<String, Object>> filters = SearchParametersUtils.extractFilters(parameterFilters);
-        List<Long> resultIDs = metadataSearchService.search(imageIds, filters);
-        results.removeIf(map -> !resultIDs.contains((Long) map.get("id")));
 
         if(light) {
             List<Map<String,Object>> lightResult = new ArrayList<>();

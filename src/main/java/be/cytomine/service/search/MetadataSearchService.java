@@ -24,6 +24,7 @@ import co.elastic.clients.elasticsearch._types.aggregations.LongTermsBucket;
 import co.elastic.clients.elasticsearch._types.query_dsl.*;
 import co.elastic.clients.json.JsonData;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.elasticsearch.client.elc.ElasticsearchAggregations;
 import org.springframework.data.elasticsearch.client.elc.NativeQuery;
 import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
@@ -90,6 +91,13 @@ public class MetadataSearchService {
         TermsQueryField termsQueryField = TermsQueryField.of(tqf -> tqf.value(imageIDs));
         Query byDomainId = TermsQuery.of(ts -> ts.field("domain_ident").terms(termsQueryField))._toQuery();
 
+        if (filters.isEmpty()) {
+            return BoolQuery.of(b -> b
+                .must(byDomainId)
+                .must(MatchAllQuery.of(maq -> maq)._toQuery())
+            )._toQuery();
+        }
+
         List<Query> subqueries = new ArrayList<>();
         for (Map.Entry<String, Object> entry : filters.entrySet()) {
             String key = entry.getKey();
@@ -102,26 +110,14 @@ public class MetadataSearchService {
             }
         }
 
-        if (filters.isEmpty()) {
-            return BoolQuery.of(b -> b
-                .must(byDomainId)
-                .must(MatchAllQuery.of(maq -> maq)._toQuery())
-            )._toQuery();
-        }
-
         return BoolQuery.of(b -> b.should(subqueries))._toQuery();
     }
 
-    public List<Long> search(Map<String, List<Long>> ids, Map<String, Map<String, Object>> filters) {
-        List<Query> queries = ids
-            .entrySet()
-            .stream()
-            .map(it -> buildQuery(it.getValue(), filters.getOrDefault(it.getKey(), new HashMap<>())))
-            .collect(Collectors.toList());
-
+    private Set<Long> executeQuery(int size, Query subQuery) {
         NativeQuery query = NativeQuery.builder()
             .withAggregation("domain_id", Aggregation.of(a -> a.terms(ta -> ta.field("domain_ident"))))
-            .withQuery(q -> q.bool(b -> b.should(queries)))
+            .withPageable(PageRequest.of(0, size))
+            .withQuery(subQuery)
             .build();
         log.debug(String.format("Elasticsearch %s", query.getQuery()));
 
@@ -144,19 +140,33 @@ public class MetadataSearchService {
             .stream()
             .collect(Collectors.toMap(LongTermsBucket::key, LongTermsBucket::docCount));
 
-        Set<Long> foundIds = buckets
+        return buckets
+            .keySet()
+            .stream()
+            .map(Long::valueOf)
+            .collect(Collectors.toSet());
+    }
+
+    public List<Long> search(Map<String, List<Long>> ids, Map<String, Map<String, Object>> filters) {
+        Map<String, Query> queries = ids
             .entrySet()
             .stream()
-            .filter(it -> filters.isEmpty() || it.getValue().equals((long) filters.size()))
-            .map(it -> Long.valueOf(it.getKey()))
-            .collect(Collectors.toSet());
+            .collect(Collectors.toMap(
+                Map.Entry::getKey,
+                it -> buildQuery(it.getValue(), filters.getOrDefault(it.getKey(), new HashMap<>()))
+            ));
+
+        Set<Long> foundIds = new HashSet<>();
+        for (Map.Entry<String, Query> entry : queries.entrySet()) {
+            foundIds.addAll(executeQuery(ids.getOrDefault(entry.getKey(), List.of()).size(), entry.getValue()));
+        }
 
         return ids
             .values()
             .stream()
             .flatMap(Collection::stream)
             .filter(foundIds::contains)
-            .collect(Collectors.toList());
+            .toList();
     }
 
     public List<String> searchAutoCompletion(String key, String search) {
