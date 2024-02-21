@@ -114,8 +114,9 @@ public class MetadataSearchService {
     }
 
     private Set<Long> executeQuery(int pageSize, int filterSize, Query subQuery) {
+        Aggregation aggregation = Aggregation.of(a -> a.terms(ta -> ta.field("domain_ident").size(pageSize)));
         NativeQuery query = NativeQuery.builder()
-            .withAggregation("domain_id", Aggregation.of(a -> a.terms(ta -> ta.field("domain_ident"))))
+            .withAggregation("domain_id", aggregation)
             .withPageable(PageRequest.of(0, pageSize))
             .withQuery(subQuery)
             .build();
