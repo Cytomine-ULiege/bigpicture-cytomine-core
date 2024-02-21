@@ -113,10 +113,10 @@ public class MetadataSearchService {
         return BoolQuery.of(b -> b.should(subqueries))._toQuery();
     }
 
-    private Set<Long> executeQuery(int size, Query subQuery) {
+    private Set<Long> executeQuery(int pageSize, int filterSize, Query subQuery) {
         NativeQuery query = NativeQuery.builder()
             .withAggregation("domain_id", Aggregation.of(a -> a.terms(ta -> ta.field("domain_ident"))))
-            .withPageable(PageRequest.of(0, size))
+            .withPageable(PageRequest.of(0, pageSize))
             .withQuery(subQuery)
             .build();
         log.debug(String.format("Elasticsearch %s", query.getQuery()));
@@ -141,9 +141,10 @@ public class MetadataSearchService {
             .collect(Collectors.toMap(LongTermsBucket::key, LongTermsBucket::docCount));
 
         return buckets
-            .keySet()
+            .entrySet()
             .stream()
-            .map(Long::valueOf)
+            .filter(it -> filterSize == 0 || it.getValue() == filterSize)
+            .map(it -> Long.valueOf(it.getKey()))
             .collect(Collectors.toSet());
     }
 
@@ -158,7 +159,11 @@ public class MetadataSearchService {
 
         Set<Long> foundIds = new HashSet<>();
         for (Map.Entry<String, Query> entry : queries.entrySet()) {
-            foundIds.addAll(executeQuery(ids.getOrDefault(entry.getKey(), List.of()).size(), entry.getValue()));
+            foundIds.addAll(executeQuery(
+                ids.get(entry.getKey()).size(),
+                filters.getOrDefault(entry.getKey(), new HashMap<>()).size(),
+                entry.getValue())
+            );
         }
 
         return ids

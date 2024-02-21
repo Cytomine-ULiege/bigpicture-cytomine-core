@@ -102,6 +102,41 @@ public class UploadedFileService extends ModelService {
         return new UploadedFile().buildDomainFromJson(json, getEntityManager());
     }
 
+    private List<Long> getElasticsearchResultIds(
+        String from,
+        String where,
+        String group,
+        Map<String, Map<String, Object>> filters,
+        SearchParameterProcessed conditions
+    ) {
+        String select = "SELECT DISTINCT ai.id, uf.content_type ";
+        String request = select + from + where + group;
+        log.debug(request);
+        Query query = getEntityManager().createNativeQuery(request, Tuple.class);
+        for (Map.Entry<String, Object> entry : conditions.getSqlParameters().entrySet()) {
+            query.setParameter(entry.getKey(), entry.getValue());
+        }
+        query.setParameter("username", currentUserService.getCurrentUsername());
+
+        List<Tuple> resultList = query.getResultList();
+        Map<String, List<Long>> imageIds = new HashMap<>();
+
+        for (Tuple rowResult : resultList) {
+            JsonObject result = new JsonObject();
+
+            for (TupleElement<?> element : rowResult.getElements()) {
+                Object value = rowResult.get(element.getAlias());
+                String alias = SQLUtils.toCamelCase(element.getAlias());
+                result.put(alias, value);
+            }
+
+            imageIds
+                .computeIfAbsent((String) result.get("contentType"), k -> new ArrayList<>())
+                .add(((BigInteger) result.get("id")).longValue());
+        }
+
+        return metadataSearchService.search(imageIds, filters);
+    }
 
     public Page<UploadedFile> list(Pageable pageable) {
         securityACLService.checkAdmin(currentUserService.getCurrentUser());
@@ -144,16 +179,6 @@ public class UploadedFileService extends ModelService {
 
             }
         }
-
-        validatedSearchParameters.addAll(
-            SQLSearchParameter
-                .getDomainAssociatedSearchParameters(AbstractImage.class, searchParameters, getEntityManager())
-                .stream()
-                .filter(x -> !x.getProperty().equals("original_filename"))
-                .map(x -> new SearchParameterEntry("ai." + x.getProperty(), x.getOperation(), x.getValue()))
-                .toList()
-        );
-
         SearchParameterProcessed sqlSearchConditions = SQLSearchParameter.searchParametersToSQLConstraints(validatedSearchParameters);
         String search = sqlSearchConditions.getData().stream().map(SearchParameterEntry::getSql).collect(Collectors.joining(" AND "));
 
@@ -182,7 +207,7 @@ public class UploadedFileService extends ModelService {
                     "AS tree ON (uf.l_tree @> tree.l_tree AND tree.id != uf.id) ";
         }
 
-        String request = "SELECT uf.id, " +
+        String select = "SELECT uf.id, " +
                 "uf.content_type, " +
                 "uf.created, " +
                 "uf.filename, " +
@@ -197,24 +222,30 @@ public class UploadedFileService extends ModelService {
                 "CASE WHEN (nlevel(uf.l_tree) > 0) THEN ltree2text(subltree(uf.l_tree, 0, 1)) ELSE NULL END AS root, " +
                 treeSelect+
                 "CASE WHEN (uf.status = " + UploadedFileStatus.CONVERTED.getCode() + " OR uf.status = " + UploadedFileStatus.DEPLOYED.getCode() + ") " +
-                "THEN ai.id ELSE NULL END AS image " +
-                "FROM uploaded_file uf " +
+                "THEN ai.id ELSE NULL END AS image ";
+        String from = "FROM uploaded_file uf " +
                 treeJoin +
                 "LEFT JOIN abstract_image AS ai ON ai.uploaded_file_id = uf.id " +
-                "LEFT JOIN uploaded_file AS parent ON parent.id = uf.parent_id " +
-                "WHERE EXISTS (SELECT 1 FROM acl_sid AS asi " +
+                "LEFT JOIN uploaded_file AS parent ON parent.id = uf.parent_id ";
+        String where = "WHERE EXISTS (SELECT 1 FROM acl_sid AS asi " +
                 "LEFT JOIN acl_entry AS ae ON asi.id = ae.sid " +
                 "LEFT JOIN acl_object_identity AS aoi ON ae.acl_object_identity = aoi.id " +
                 "WHERE aoi.object_id_identity = uf.storage_id AND asi.sid = :username) " +
                 "AND (uf.parent_id IS NULL OR parent.content_type IN ('" + String.join("','", UploadedFile.ARCHIVE_FORMATS) + "')) " +
                 "AND uf.content_type NOT IN ('" + String.join("','", UploadedFile.ARCHIVE_FORMATS) + "') " +
-                "AND uf.deleted IS NULL " +
-                "AND " +
-                (search.trim().isEmpty() ? "true" : search) +
-                " GROUP BY uf.id, ai.id " +
-                sort;
+                "AND uf.deleted IS NULL ";
+        String group = "AND " + (search.trim().isEmpty() ? "true" : search) +
+                " GROUP BY uf.id, ai.id ";
 
+        /* Add elasticsearch filtering */
+        Map<String, Map<String, Object>> filters = SearchParametersUtils.extractFilters(parameterFilters);
+        if (!filters.isEmpty()) {
+            List<Long> ids = getElasticsearchResultIds(from, where, group, filters, sqlSearchConditions);
+            String includeIds = ids.stream().map(Object::toString).collect(Collectors.joining(", "));
+            where += " AND ai.id IN (" + (includeIds.isEmpty() ? "0" : includeIds) + ")";
+        }
 
+        String request = select + from + where + group + sort;
         Query query = getEntityManager().createNativeQuery(request, Tuple.class);
         Map<String, Object> mapParams = sqlSearchConditions.getSqlParameters();
         mapParams.put("username", currentUserService.getCurrentUsername());
@@ -223,7 +254,6 @@ public class UploadedFileService extends ModelService {
         }
         List<Tuple> resultList = query.getResultList();
         List<Map<String, Object>> results = new ArrayList<>();
-        Map<String, List<Long>> imageIds = new HashMap<>();
         for (Tuple rowResult : resultList) {
             Map<String, Object> result = new HashMap<>();
             for (TupleElement<?> element : rowResult.getElements()) {
@@ -237,16 +267,7 @@ public class UploadedFileService extends ModelService {
             result.put("thumbURL",(result.get("image")!=null) ? UrlApi.getAbstractImageThumbUrl((Long)result.get("image"), "png") : null);
             result.put("isArchive", UploadedFile.ARCHIVE_FORMATS.contains(result.get("contentType")));
             results.add(result);
-
-            imageIds
-                .computeIfAbsent((String) result.get("contentType"), k -> new ArrayList<>())
-                .add((Long) result.get("image"));
         }
-
-        /* Add elasticsearch filtering */
-        Map<String, Map<String, Object>> filters = SearchParametersUtils.extractFilters(parameterFilters);
-        List<Long> resultIDs = metadataSearchService.search(imageIds, filters);
-        results.removeIf(map -> !resultIDs.contains((Long) map.get("image")));
 
         return results;
     }
