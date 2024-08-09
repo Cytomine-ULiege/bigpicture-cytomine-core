@@ -16,7 +16,7 @@ package be.cytomine.api.controller.search;
  * limitations under the License.
  */
 
-import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import javax.persistence.EntityManager;
 
 import com.vividsolutions.jts.io.ParseException;
@@ -58,7 +58,7 @@ public class RestRetrievalController extends RestCytomineController {
     @GetMapping("/retrieval/index")
     public ResponseEntity<String> indexAnnotation(
         @RequestParam(value = "annotation") Long id
-    ) throws IOException, ParseException, InterruptedException {
+    ) throws ParseException, UnsupportedEncodingException {
         log.debug("REST request to index an annotation");
 
         AnnotationDomain annotation = AnnotationDomain.getAnnotationDomain(entityManager, id);
@@ -67,23 +67,21 @@ public class RestRetrievalController extends RestCytomineController {
         return retrievalService.indexAnnotation(annotation, parameters, getRequestETag());
     }
 
-    @GetMapping("/retrieval/retrieve.json")
+    @GetMapping("/retrieval/search")
     public ResponseEntity<String> retrieveSimilarAnnotations(
         @RequestParam(value = "annotation") Long id,
         @RequestParam(value = "nrt_neigh") Long nrt_neigh
-    ) throws IOException, ParseException, InterruptedException {
+    ) throws ParseException, UnsupportedEncodingException {
         log.debug("REST request to retrieve similar annotations given a query annotation {}", id);
 
         AnnotationDomain annotation = AnnotationDomain.getAnnotationDomain(entityManager, id);
         CropParameter parameters = getParameters(annotation.getWktLocation());
 
-        return responseSuccess(
-            retrievalService.retrieveSimilarImages(
-                annotation,
-                parameters,
-                getRequestETag(),
-                nrt_neigh
-            )
+        return retrievalService.retrieveSimilarImages(
+            annotation,
+            parameters,
+            getRequestETag(),
+            nrt_neigh
         );
     }
 }

@@ -16,13 +16,7 @@ package be.cytomine.service.search;
  * limitations under the License.
  */
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.util.Map;
+import java.io.UnsupportedEncodingException;
 
 import com.vividsolutions.jts.io.ParseException;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +26,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import be.cytomine.config.properties.ApplicationProperties;
 import be.cytomine.domain.CytomineDomain;
@@ -49,25 +44,14 @@ public class RetrievalService extends ModelService {
 
     private final ImageServerService imageServerService;
 
-    private final HttpClient client;
-
     private final RestTemplate restTemplate;
 
     private final String baseUrl;
 
     private final String indexName = "annotation";
 
-    public RetrievalService(
-        ApplicationProperties applicationProperties,
-        ImageServerService imageServerService
-    ) {
+    public RetrievalService(ApplicationProperties applicationProperties, ImageServerService imageServerService) {
         this.imageServerService = imageServerService;
-
-        this.client = HttpClient
-            .newBuilder()
-            .version(HttpClient.Version.HTTP_1_1)
-            .build();
-
         this.restTemplate = new RestTemplate();
         this.baseUrl = applicationProperties.getRetrievalServerURL();
     }
@@ -82,33 +66,11 @@ public class RetrievalService extends ModelService {
         return new RetrievalServer().buildDomainFromJson(json, getEntityManager());
     }
 
-    private HttpRequest buildRequest(String url, String filename, byte[] image, byte[] parameters) throws IOException {
-        String header = "--data\r\nContent-Disposition: form-data; name=\"image\"; filename=\"" + filename + "\"\r\n\r\n";
-        byte[] prefix = header.getBytes();
-        byte[] suffix = "\r\n--data--\r\n".getBytes();
-
-        ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
-        byteStream.write(parameters);
-        byteStream.write(prefix);
-        byteStream.write(image);
-        byteStream.write(suffix);
-
-        return HttpRequest
-            .newBuilder()
-            .setHeader("Content-Type", "multipart/form-data; boundary=data")
-            .uri(URI.create(url))
-            .POST(HttpRequest.BodyPublishers.ofByteArray(byteStream.toByteArray()))
-            .build();
-    }
-
-    public ResponseEntity<String> indexAnnotation(
+    private HttpEntity<MultiValueMap<String, Object>> createMultipartRequestEntity(
         AnnotationDomain annotation,
         CropParameter parameters,
         String etag
-    ) throws IOException, ParseException {
-        String storageName = annotation.getProject().getId().toString();
-        String url = this.baseUrl + "/api/images?storage=" + storageName + "&index=" + this.indexName;
-
+    ) throws ParseException, UnsupportedEncodingException {
         // Request annotation crop from PIMS
         PimsResponse crop = imageServerService.crop(annotation.getSlice().getBaseSlice(), parameters, etag);
 
@@ -123,49 +85,66 @@ public class RetrievalService extends ModelService {
             }
         });
 
-        HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
+        return new HttpEntity<>(body, headers);
+    }
+
+    public ResponseEntity<String> indexAnnotation(
+        AnnotationDomain annotation,
+        CropParameter parameters,
+        String etag
+    ) throws ParseException, UnsupportedEncodingException {
+        String storageName = annotation.getProject().getId().toString();
+        String url = UriComponentsBuilder
+            .fromHttpUrl(this.baseUrl + "/api/images")
+            .queryParam("storage", storageName)
+            .queryParam("index", this.indexName)
+            .toUriString();
+
+        HttpEntity<MultiValueMap<String, Object>> requestEntity = createMultipartRequestEntity(
+            annotation,
+            parameters,
+            etag
+        );
 
         return this.restTemplate.exchange(url, HttpMethod.POST, requestEntity, String.class);
     }
 
-    public void deleteIndex(AnnotationDomain annotation) throws IOException, InterruptedException {
-        String url = this.baseUrl + "/api/images/" + annotation.getId();
-        String query = "?storage=" + annotation.getProject().getId() + "&index=" + this.indexName;
+    public void deleteIndex(AnnotationDomain annotation) {
+        String url = UriComponentsBuilder
+            .fromHttpUrl(this.baseUrl + "/api/images/" + annotation.getId())
+            .queryParam("storage", annotation.getProject().getId())
+            .queryParam("index", this.indexName)
+            .toUriString();
 
         ResponseEntity<String> response = restTemplate.exchange(
-            url + query,
+            url,
             HttpMethod.DELETE,
             null,
             String.class
         );
 
-        log.info(String.valueOf(response.getStatusCode()));
+        log.info(response.getStatusCode().toString());
     }
 
-    public Map<String, Object> retrieveSimilarImages(
+    public ResponseEntity<String> retrieveSimilarImages(
         AnnotationDomain annotation,
         CropParameter parameters,
         String etag,
         Long nrt_neigh
-    ) throws IOException, ParseException, InterruptedException {
-        String url = this.baseUrl + "/api/images/retrieve";
+    ) throws ParseException, UnsupportedEncodingException {
+        String url = UriComponentsBuilder
+            .fromHttpUrl(this.baseUrl + "/api/search")
+            .queryParam("storage", annotation.getProject().getId())
+            .queryParam("index", this.indexName)
+            .queryParam("nrt_neigh", nrt_neigh)
+            .toUriString();
 
-        // Request annotation crop from PIMS
-        PimsResponse crop = imageServerService.crop(annotation.getSlice().getBaseSlice(), parameters, etag);
-
-        // Format nrt_neigh variable
-        byte[] requestParameters = String.format(
-            "--data\r\nContent-Disposition: form-data; name=\"nrt_neigh\"\r\n\r\n%s\r\n",
-            nrt_neigh
-        ).getBytes();
-
-        HttpResponse<byte[]> response = this.client.send(
-            buildRequest(url, annotation.getId().toString(), crop.getContent(), requestParameters),
-            HttpResponse.BodyHandlers.ofByteArray()
+        HttpEntity<MultiValueMap<String, Object>> requestEntity = createMultipartRequestEntity(
+            annotation,
+            parameters,
+            etag
         );
 
-        log.info(String.valueOf(response.statusCode()));
-
-        return JsonObject.toMap(new String(response.body()));
+        return this.restTemplate.exchange(url, HttpMethod.POST, requestEntity, String.class);
     }
 }
