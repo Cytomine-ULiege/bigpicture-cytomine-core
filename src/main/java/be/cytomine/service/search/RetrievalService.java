@@ -55,6 +55,8 @@ public class RetrievalService extends ModelService {
 
     private final String baseUrl;
 
+    private final String indexName = "annotation";
+
     public RetrievalService(
         ApplicationProperties applicationProperties,
         ImageServerService imageServerService
@@ -105,8 +107,7 @@ public class RetrievalService extends ModelService {
         String etag
     ) throws IOException, ParseException {
         String storageName = annotation.getProject().getId().toString();
-        String indexName = "annotation";
-        String url = this.baseUrl + "/api/images?storage=" + storageName + "&index=" + indexName;
+        String url = this.baseUrl + "/api/images?storage=" + storageName + "&index=" + this.indexName;
 
         // Request annotation crop from PIMS
         PimsResponse crop = imageServerService.crop(annotation.getSlice().getBaseSlice(), parameters, etag);
@@ -128,19 +129,17 @@ public class RetrievalService extends ModelService {
     }
 
     public void deleteIndex(AnnotationDomain annotation) throws IOException, InterruptedException {
-        String url = this.baseUrl + "/api/images/remove?filename=" + annotation.getId();
-        HttpRequest request = HttpRequest
-            .newBuilder()
-            .uri(URI.create(url))
-            .DELETE()
-            .build();
+        String url = this.baseUrl + "/api/images/" + annotation.getId();
+        String query = "?storage=" + annotation.getProject().getId() + "&index=" + this.indexName;
 
-        HttpResponse<byte[]> response = this.client.send(
-            request,
-            HttpResponse.BodyHandlers.ofByteArray()
+        ResponseEntity<String> response = restTemplate.exchange(
+            url + query,
+            HttpMethod.DELETE,
+            null,
+            String.class
         );
 
-        log.info(String.valueOf(response.statusCode()));
+        log.info(String.valueOf(response.getStatusCode()));
     }
 
     public Map<String, Object> retrieveSimilarImages(
