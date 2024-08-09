@@ -16,6 +16,23 @@ package be.cytomine.service.search;
  * limitations under the License.
  */
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.util.Map;
+
+import com.vividsolutions.jts.io.ParseException;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.*;
+import org.springframework.stereotype.Service;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.RestTemplate;
+
 import be.cytomine.config.properties.ApplicationProperties;
 import be.cytomine.domain.CytomineDomain;
 import be.cytomine.domain.ontology.AnnotationDomain;
@@ -25,36 +42,32 @@ import be.cytomine.service.ModelService;
 import be.cytomine.service.dto.CropParameter;
 import be.cytomine.service.middleware.ImageServerService;
 import be.cytomine.utils.JsonObject;
-import com.vividsolutions.jts.io.ParseException;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.util.Map;
-
-@Service
 @Slf4j
+@Service
 public class RetrievalService extends ModelService {
-
-    private final ApplicationProperties applicationProperties;
 
     private final ImageServerService imageServerService;
 
     private final HttpClient client;
 
-    public RetrievalService(ApplicationProperties applicationProperties, ImageServerService imageServerService) {
-        this.applicationProperties = applicationProperties;
+    private final RestTemplate restTemplate;
+
+    private final String baseUrl;
+
+    public RetrievalService(
+        ApplicationProperties applicationProperties,
+        ImageServerService imageServerService
+    ) {
         this.imageServerService = imageServerService;
 
         this.client = HttpClient
             .newBuilder()
             .version(HttpClient.Version.HTTP_1_1)
             .build();
+
+        this.restTemplate = new RestTemplate();
+        this.baseUrl = applicationProperties.getRetrievalServerURL();
     }
 
     @Override
@@ -65,10 +78,6 @@ public class RetrievalService extends ModelService {
     @Override
     public CytomineDomain createFromJSON(JsonObject json) {
         return new RetrievalServer().buildDomainFromJson(json, getEntityManager());
-    }
-
-    private HttpRequest buildRequest(String url, String filename, byte[] image) throws IOException {
-        return buildRequest(url, filename, image, "".getBytes());
     }
 
     private HttpRequest buildRequest(String url, String filename, byte[] image, byte[] parameters) throws IOException {
@@ -90,28 +99,36 @@ public class RetrievalService extends ModelService {
             .build();
     }
 
-    public String indexAnnotation(
+    public ResponseEntity<String> indexAnnotation(
         AnnotationDomain annotation,
         CropParameter parameters,
         String etag
-    ) throws IOException, ParseException, InterruptedException {
-        String url = applicationProperties.getRetrievalServerURL() + "/api/images/index";
+    ) throws IOException, ParseException {
+        String storageName = annotation.getProject().getId().toString();
+        String indexName = "annotation";
+        String url = this.baseUrl + "/api/images?storage=" + storageName + "&index=" + indexName;
 
         // Request annotation crop from PIMS
         PimsResponse crop = imageServerService.crop(annotation.getSlice().getBaseSlice(), parameters, etag);
 
-        HttpResponse<byte[]> response = this.client.send(
-            buildRequest(url, annotation.getId().toString(), crop.getContent()),
-            HttpResponse.BodyHandlers.ofByteArray()
-        );
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.MULTIPART_FORM_DATA);
 
-        log.info(String.valueOf(response.statusCode()));
+        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        body.add("image", new ByteArrayResource(crop.getContent()) {
+            @Override
+            public String getFilename() {
+                return annotation.getId().toString();
+            }
+        });
 
-        return "";
+        HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
+
+        return this.restTemplate.exchange(url, HttpMethod.POST, requestEntity, String.class);
     }
 
     public void deleteIndex(AnnotationDomain annotation) throws IOException, InterruptedException {
-        String url = applicationProperties.getRetrievalServerURL() + "/api/images/remove?filename=" + annotation.getId();
+        String url = this.baseUrl + "/api/images/remove?filename=" + annotation.getId();
         HttpRequest request = HttpRequest
             .newBuilder()
             .uri(URI.create(url))
@@ -132,7 +149,7 @@ public class RetrievalService extends ModelService {
         String etag,
         Long nrt_neigh
     ) throws IOException, ParseException, InterruptedException {
-        String url = applicationProperties.getRetrievalServerURL() + "/api/images/retrieve";
+        String url = this.baseUrl + "/api/images/retrieve";
 
         // Request annotation crop from PIMS
         PimsResponse crop = imageServerService.crop(annotation.getSlice().getBaseSlice(), parameters, etag);

@@ -484,7 +484,7 @@ public class UserAnnotationService extends ModelService {
 
         try {
             retrievalService.indexAnnotation(annotation, parameters, null);
-        } catch (IOException | ParseException | InterruptedException exception) {
+        } catch (IOException | ParseException exception) {
             log.error(exception.getMessage());
         }
     }
