@@ -17,6 +17,8 @@ package be.cytomine.service.search;
  */
 
 import java.io.UnsupportedEncodingException;
+import java.util.ArrayList;
+import java.util.List;
 
 import com.vividsolutions.jts.io.ParseException;
 import lombok.extern.slf4j.Slf4j;
@@ -127,6 +129,20 @@ public class RetrievalService extends ModelService {
         log.debug(response.getStatusCode().toString());
     }
 
+    private List<List<Object>> processSimilarities(List<List<Object>> similarities, double maxDistance) {
+        List<List<Object>> percentages = new ArrayList<>();
+
+        for (List<Object> entry : similarities) {
+            String item = (String) entry.get(0);
+            Double distance = (Double) entry.get(1);
+            Double percentage = (1 - (distance / maxDistance)) * 100;
+
+            percentages.add(List.of(item, percentage));
+        }
+
+        return percentages;
+    }
+
     public ResponseEntity<SearchResponse> retrieveSimilarImages(
         AnnotationDomain annotation,
         CropParameter parameters,
@@ -161,6 +177,14 @@ public class RetrievalService extends ModelService {
         }
 
         searchResponse.getSimilarities().remove(0);
+
+        double maxDistance = searchResponse
+            .getSimilarities()
+            .stream()
+            .mapToDouble(d -> (Double) d.get(1))
+            .max()
+            .orElse(1.0);
+        searchResponse.setSimilarities(processSimilarities(searchResponse.getSimilarities(), maxDistance));
 
         return new ResponseEntity<>(searchResponse, HttpStatus.OK);
     }
