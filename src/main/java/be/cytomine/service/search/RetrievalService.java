@@ -33,6 +33,7 @@ import be.cytomine.domain.CytomineDomain;
 import be.cytomine.domain.ontology.AnnotationDomain;
 import be.cytomine.domain.search.RetrievalServer;
 import be.cytomine.dto.PimsResponse;
+import be.cytomine.dto.search.SearchResponse;
 import be.cytomine.service.ModelService;
 import be.cytomine.service.dto.CropParameter;
 import be.cytomine.service.middleware.ImageServerService;
@@ -123,10 +124,10 @@ public class RetrievalService extends ModelService {
             String.class
         );
 
-        log.info(response.getStatusCode().toString());
+        log.debug(response.getStatusCode().toString());
     }
 
-    public ResponseEntity<String> retrieveSimilarImages(
+    public ResponseEntity<SearchResponse> retrieveSimilarImages(
         AnnotationDomain annotation,
         CropParameter parameters,
         String etag,
@@ -136,7 +137,7 @@ public class RetrievalService extends ModelService {
             .fromHttpUrl(this.baseUrl + "/api/search")
             .queryParam("storage", annotation.getProject().getId())
             .queryParam("index", this.indexName)
-            .queryParam("nrt_neigh", nrt_neigh)
+            .queryParam("nrt_neigh", nrt_neigh + 1)
             .toUriString();
 
         HttpEntity<MultiValueMap<String, Object>> requestEntity = createMultipartRequestEntity(
@@ -145,6 +146,22 @@ public class RetrievalService extends ModelService {
             etag
         );
 
-        return this.restTemplate.exchange(url, HttpMethod.POST, requestEntity, String.class);
+        log.debug("Sending request to {} with entity {}", url, requestEntity);
+        ResponseEntity<SearchResponse> response = this.restTemplate.exchange(
+            url,
+            HttpMethod.POST,
+            requestEntity,
+            SearchResponse.class
+        );
+        log.debug("Receiving response {}", response);
+
+        SearchResponse searchResponse = response.getBody();
+        if (searchResponse == null) {
+            return response;
+        }
+
+        searchResponse.getSimilarities().remove(0);
+
+        return new ResponseEntity<>(searchResponse, HttpStatus.OK);
     }
 }

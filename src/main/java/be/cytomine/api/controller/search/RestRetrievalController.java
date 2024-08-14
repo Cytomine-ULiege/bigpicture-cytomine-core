@@ -30,6 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import be.cytomine.api.controller.RestCytomineController;
 import be.cytomine.domain.ontology.AnnotationDomain;
+import be.cytomine.dto.search.SearchResponse;
 import be.cytomine.service.dto.CropParameter;
 import be.cytomine.service.search.RetrievalService;
 
@@ -68,7 +69,7 @@ public class RestRetrievalController extends RestCytomineController {
     }
 
     @GetMapping("/retrieval/search")
-    public ResponseEntity<String> retrieveSimilarAnnotations(
+    public ResponseEntity<SearchResponse> retrieveSimilarAnnotations(
         @RequestParam(value = "annotation") Long id,
         @RequestParam(value = "nrt_neigh") Long nrt_neigh
     ) throws ParseException, UnsupportedEncodingException {
