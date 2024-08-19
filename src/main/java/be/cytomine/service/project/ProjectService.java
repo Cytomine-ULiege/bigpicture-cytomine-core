@@ -70,10 +70,7 @@ import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.*;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.MediaType;
+import org.springframework.http.*;
 import org.springframework.security.acls.domain.BasePermission;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -616,12 +613,16 @@ public class ProjectService extends ModelService {
         headers.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<Map<String, String>> requestEntity = new HttpEntity<>(payload, headers);
 
-        restTemplate.exchange(
+        ResponseEntity<String> response = restTemplate.exchange(
             url,
             HttpMethod.POST,
             requestEntity,
             String.class
         );
+
+        if (!response.getStatusCode().equals(HttpStatus.OK)) {
+            log.error("Failed to create storage for project {}", projectId);
+        }
     }
 
     @Override

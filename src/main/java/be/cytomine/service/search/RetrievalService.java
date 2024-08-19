@@ -116,21 +116,20 @@ public class RetrievalService extends ModelService {
         return this.restTemplate.exchange(url, HttpMethod.POST, requestEntity, String.class);
     }
 
-    public void deleteIndex(AnnotationDomain annotation) {
+    public ResponseEntity<String> deleteIndex(AnnotationDomain annotation) {
         String url = UriComponentsBuilder
             .fromHttpUrl(this.baseUrl + "/api/images/" + annotation.getId())
             .queryParam("storage", annotation.getProject().getId())
             .queryParam("index", this.indexName)
             .toUriString();
 
-        ResponseEntity<String> response = restTemplate.exchange(
+        log.debug("Sending DELETE request to {}", url);
+        return restTemplate.exchange(
             url,
             HttpMethod.DELETE,
             null,
             String.class
         );
-
-        log.debug(response.getStatusCode().toString());
     }
 
     private List<List<Object>> processSimilarities(List<List<Object>> similarities, double maxDistance) {
