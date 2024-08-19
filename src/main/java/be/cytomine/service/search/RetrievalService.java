@@ -53,9 +53,13 @@ public class RetrievalService extends ModelService {
 
     private final String indexName = "annotation";
 
-    public RetrievalService(ApplicationProperties applicationProperties, ImageServerService imageServerService) {
+    public RetrievalService(
+        ApplicationProperties applicationProperties,
+        ImageServerService imageServerService,
+        RestTemplate restTemplate
+    ) {
         this.imageServerService = imageServerService;
-        this.restTemplate = new RestTemplate();
+        this.restTemplate = restTemplate;
         this.baseUrl = applicationProperties.getRetrievalServerURL();
     }
 

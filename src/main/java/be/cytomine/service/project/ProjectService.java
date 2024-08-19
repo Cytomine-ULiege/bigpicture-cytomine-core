@@ -178,6 +178,9 @@ public class ProjectService extends ModelService {
     @Autowired
     private ProjectRepresentativeUserRepository projectRepresentativeUserRepository;
 
+    @Autowired
+    private RestTemplate restTemplate;
+
     public Project get(Long id) {
         return find(id).orElse(null);
     }
@@ -613,7 +616,7 @@ public class ProjectService extends ModelService {
         headers.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<Map<String, String>> requestEntity = new HttpEntity<>(payload, headers);
 
-        new RestTemplate().exchange(
+        restTemplate.exchange(
             url,
             HttpMethod.POST,
             requestEntity,
