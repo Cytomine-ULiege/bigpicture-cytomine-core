@@ -46,20 +46,24 @@ public class RetrievalServiceTests {
         UserAnnotation annotation = builder.given_a_user_annotation();
 
         String expectedUrlPath = "/api/images/" + annotation.getId();
+        String expectedResponseBody = "{ \"id\": " + annotation.getId();
+        expectedResponseBody += ", \"storage\": " + annotation.getProject().getId().toString();
+        expectedResponseBody += ", \"index\": \"annotation\" }";
 
         wireMockServer.stubFor(WireMock.delete(urlPathEqualTo(expectedUrlPath))
             .withQueryParam("storage", WireMock.equalTo(annotation.getProject().getId().toString()))
             .withQueryParam("index", WireMock.equalTo("annotation"))
             .willReturn(aResponse()
                 .withStatus(HttpStatus.OK.value())
-                .withBody("Success")
+                .withHeader("Content-Type", "application/json")
+                .withBody(expectedResponseBody)
             )
         );
 
         ResponseEntity<String> response = retrievalService.deleteIndex(annotation);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertEquals("Success", response.getBody());
+        assertEquals(expectedResponseBody, response.getBody());
 
         wireMockServer.verify(WireMock.deleteRequestedFor(urlPathEqualTo(expectedUrlPath))
             .withQueryParam("storage", WireMock.equalTo(annotation.getProject().getId().toString()))
