@@ -613,6 +613,7 @@ public class ProjectService extends ModelService {
         headers.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<Map<String, String>> requestEntity = new HttpEntity<>(payload, headers);
 
+        log.debug("Sending POST request to {}, {}", url, projectId);
         ResponseEntity<String> response = restTemplate.exchange(
             url,
             HttpMethod.POST,
