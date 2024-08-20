@@ -16,8 +16,11 @@ package be.cytomine.api.controller.project;
 * limitations under the License.
 */
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.List;
+import java.util.UUID;
 import javax.persistence.EntityManager;
 
 import com.github.tomakehurst.wiremock.WireMockServer;
@@ -51,11 +54,9 @@ import be.cytomine.repositorynosql.social.PersistentProjectConnectionRepository;
 import be.cytomine.service.PermissionService;
 import be.cytomine.service.ontology.UserAnnotationService;
 import be.cytomine.service.social.ProjectConnectionService;
-import be.cytomine.utils.CommandResponse;
 import be.cytomine.utils.JsonObject;
 
-import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
-import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
+import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.springframework.security.acls.domain.BasePermission.ADMINISTRATION;
@@ -163,26 +164,46 @@ public class ProjectResourceTests {
         Project project = builder.given_a_project();
         builder.addUserToProject(project, builder.given_superadmin().getUsername());
         UserAnnotation userAnnotation = builder.given_a_not_persisted_user_annotation(project);
+
+        /* Simulate call to CBIR */
+        wireMockServer.stubFor(WireMock.post(urlPathEqualTo("/api/images"))
+            .withQueryParam("storage", WireMock.equalTo(userAnnotation.getProject().getId().toString()))
+            .withQueryParam("index", WireMock.equalTo("annotation"))
+            .willReturn(aResponse().withBody(UUID.randomUUID().toString()))
+        );
+
+        /* Simulate call to PIMS */
+        String id = URLEncoder.encode(userAnnotation.getSlice().getBaseSlice().getPath(), StandardCharsets.UTF_8);
+        wireMockServer.stubFor(WireMock.post(urlEqualTo("/image/" + id + "/annotation/drawing"))
+                .withRequestBody(WireMock.matching(".*"))
+                .willReturn(aResponse().withBody(UUID.randomUUID().toString().getBytes()))
+        );
+
+        userAnnotation
+            .getSlice()
+            .getBaseSlice()
+            .getUploadedFile()
+            .getImageServer()
+            .setUrl("http://localhost:8888");
         userAnnotationService.add(userAnnotation.toJsonObject());
 
         restProjectControllerMockMvc.perform(get("/api/project.json")
-                        .param("max", "10")
-                        .param("offset", "0")
-                        .param("withLastActivity", "true")
-                        .param("withMembersCount", "true")
-                        .param("withCurrentUserRoles", "true")
-                        .param("sort", "id")
-                        .param("order", "desc")
-                )
-                .andDo(print())
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.collection", hasSize(greaterThan(0))))
-                .andExpect(jsonPath("$.collection[?(@.id=='"+project.getId()+"')].lastActivity").hasJsonPath())
-                .andExpect(jsonPath("$.collection[?(@.id=='"+project.getId()+"')].currentUserRoles").hasJsonPath())
-                .andExpect(jsonPath("$.collection[?(@.id=='"+project.getId()+"')].currentUserRoles.admin").value(true))
-                .andExpect(jsonPath("$.collection[?(@.id=='"+project.getId()+"')].currentUserRoles.representative").value(false))
-                .andExpect(jsonPath("$.collection[?(@.id=='"+project.getId()+"')].membersCount").value(1))
-        ;
+                .param("max", "10")
+                .param("offset", "0")
+                .param("withLastActivity", "true")
+                .param("withMembersCount", "true")
+                .param("withCurrentUserRoles", "true")
+                .param("sort", "id")
+                .param("order", "desc")
+            )
+            .andDo(print())
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.collection", hasSize(greaterThan(0))))
+            .andExpect(jsonPath("$.collection[?(@.id=='" + project.getId() + "')].lastActivity").hasJsonPath())
+            .andExpect(jsonPath("$.collection[?(@.id=='" + project.getId() + "')].currentUserRoles").hasJsonPath())
+            .andExpect(jsonPath("$.collection[?(@.id=='" + project.getId() + "')].currentUserRoles.admin").value(true))
+            .andExpect(jsonPath("$.collection[?(@.id=='" + project.getId() + "')].currentUserRoles.representative").value(false))
+            .andExpect(jsonPath("$.collection[?(@.id=='" + project.getId() + "')].membersCount").value(1));
     }
 
     @Test
@@ -786,7 +807,28 @@ public class ProjectResourceTests {
         Project project = builder.given_a_project();
         builder.addUserToProject(project, builder.given_superadmin().getUsername());
         UserAnnotation userAnnotation = builder.given_a_not_persisted_user_annotation(project);
-        CommandResponse commandResponse = userAnnotationService.add(userAnnotation.toJsonObject());
+
+        /* Simulate call to CBIR */
+        wireMockServer.stubFor(WireMock.post(urlPathEqualTo("/api/images"))
+            .withQueryParam("storage", WireMock.equalTo(userAnnotation.getProject().getId().toString()))
+            .withQueryParam("index", WireMock.equalTo("annotation"))
+            .willReturn(aResponse().withBody(UUID.randomUUID().toString()))
+        );
+
+        /* Simulate call to PIMS */
+        String id = URLEncoder.encode(userAnnotation.getSlice().getBaseSlice().getPath(), StandardCharsets.UTF_8);
+        wireMockServer.stubFor(WireMock.post(urlEqualTo("/image/" + id + "/annotation/drawing"))
+            .withRequestBody(WireMock.matching(".*"))
+            .willReturn(aResponse().withBody(UUID.randomUUID().toString().getBytes()))
+        );
+
+        userAnnotation
+            .getSlice()
+            .getBaseSlice()
+            .getUploadedFile()
+            .getImageServer()
+            .setUrl("http://localhost:8888");
+        userAnnotationService.add(userAnnotation.toJsonObject());
 
         restProjectControllerMockMvc.perform(get("/api/project/{id}/last/{max}.json", project.getId(), 10))
                 .andDo(print())
@@ -1084,7 +1126,28 @@ public class ProjectResourceTests {
         builder.addUserToProject(project, creator.getUsername());
 
         UserAnnotation userAnnotation = builder.given_a_not_persisted_user_annotation(project);
-        CommandResponse commandResponse = userAnnotationService.add(userAnnotation.toJsonObject());
+
+        /* Simulate call to CBIR */
+        wireMockServer.stubFor(WireMock.post(urlPathEqualTo("/api/images"))
+            .withQueryParam("storage", WireMock.equalTo(userAnnotation.getProject().getId().toString()))
+            .withQueryParam("index", WireMock.equalTo("annotation"))
+            .willReturn(aResponse().withBody(UUID.randomUUID().toString()))
+        );
+
+        /* Simulate call to PIMS */
+        String id = URLEncoder.encode(userAnnotation.getSlice().getBaseSlice().getPath(), StandardCharsets.UTF_8);
+        wireMockServer.stubFor(WireMock.post(urlEqualTo("/image/" + id + "/annotation/drawing"))
+            .withRequestBody(WireMock.matching(".*"))
+            .willReturn(aResponse().withBody(UUID.randomUUID().toString().getBytes()))
+        );
+
+        userAnnotation
+            .getSlice()
+            .getBaseSlice()
+            .getUploadedFile()
+            .getImageServer()
+            .setUrl("http://localhost:8888");
+        userAnnotationService.add(userAnnotation.toJsonObject());
 
         restProjectControllerMockMvc.perform(get("/api/commandhistory.json")
                         .param("fullData", "true"))
@@ -1101,7 +1164,6 @@ public class ProjectResourceTests {
 
     }
 
-
     @Test
     @Transactional
     public void list_command_history_with_dates() throws Exception {
@@ -1110,34 +1172,52 @@ public class ProjectResourceTests {
         builder.addUserToProject(project, creator.getUsername());
 
         Date start = DateUtils.addSeconds(new Date(), -5);
-        UserAnnotation userAnnotation = builder.given_a_not_persisted_user_annotation(project);
-        CommandResponse commandResponse = userAnnotationService.add(userAnnotation.toJsonObject());
         Date stop = DateUtils.addSeconds(new Date(), 5);
+        UserAnnotation userAnnotation = builder.given_a_not_persisted_user_annotation(project);
 
+        /* Simulate call to CBIR */
+        wireMockServer.stubFor(WireMock.post(urlPathEqualTo("/api/images"))
+            .withQueryParam("storage", WireMock.equalTo(userAnnotation.getProject().getId().toString()))
+            .withQueryParam("index", WireMock.equalTo("annotation"))
+            .willReturn(aResponse().withBody(UUID.randomUUID().toString()))
+        );
+
+        /* Simulate call to PIMS */
+        String id = URLEncoder.encode(userAnnotation.getSlice().getBaseSlice().getPath(), StandardCharsets.UTF_8);
+        wireMockServer.stubFor(WireMock.post(urlEqualTo("/image/" + id + "/annotation/drawing"))
+            .withRequestBody(WireMock.matching(".*"))
+            .willReturn(aResponse().withBody(UUID.randomUUID().toString().getBytes()))
+        );
+
+        userAnnotation
+            .getSlice()
+            .getBaseSlice()
+            .getUploadedFile()
+            .getImageServer()
+            .setUrl("http://localhost:8888");
+        userAnnotationService.add(userAnnotation.toJsonObject());
 
         restProjectControllerMockMvc.perform(get("/api/project/{id}/commandhistory.json", project.getId())
-                        .param("startDate", start.getTime()+"")
-                        .param("endDate", stop.getTime()+""))
-                .andDo(print())
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.project=="+project.getId()+")]").exists());
+                .param("startDate", start.getTime()+"")
+                .param("endDate", stop.getTime()+""))
+            .andDo(print())
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[?(@.project=="+project.getId()+")]").exists());
 
         restProjectControllerMockMvc.perform(get("/api/project/{id}/commandhistory.json", project.getId())
-                        .param("startDate", DateUtils.addSeconds(start, -5).getTime()+"")
-                        .param("endDate", DateUtils.addSeconds(start, -3).getTime()+""))
-                .andDo(print())
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.project=="+project.getId()+")]").doesNotExist());
+                .param("startDate", DateUtils.addSeconds(start, -5).getTime()+"")
+                .param("endDate", DateUtils.addSeconds(start, -3).getTime()+""))
+            .andDo(print())
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[?(@.project=="+project.getId()+")]").doesNotExist());
 
         restProjectControllerMockMvc.perform(get("/api/project/{id}/commandhistory.json", project.getId())
-                        .param("startDate", DateUtils.addSeconds(start, 3).getTime()+"")
-                        .param("endDate", DateUtils.addSeconds(start, 5).getTime()+""))
-                .andDo(print())
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.project=="+project.getId()+")]").doesNotExist());
-
+                .param("startDate", DateUtils.addSeconds(start, 3).getTime()+"")
+                .param("endDate", DateUtils.addSeconds(start, 5).getTime()+""))
+            .andDo(print())
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[?(@.project=="+project.getId()+")]").doesNotExist());
     }
-
 
     @Test
     public void invite_user_in_project() throws Exception {
