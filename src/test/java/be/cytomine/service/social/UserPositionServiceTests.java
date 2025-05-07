@@ -20,47 +20,34 @@ import be.cytomine.BasicInstanceBuilder;
 import be.cytomine.CytomineCoreApplication;
 import be.cytomine.domain.image.ImageInstance;
 import be.cytomine.domain.image.SliceInstance;
-import be.cytomine.domain.ontology.UserAnnotation;
-import be.cytomine.domain.project.Project;
 import be.cytomine.domain.security.User;
-import be.cytomine.domain.social.LastConnection;
 import be.cytomine.domain.social.LastUserPosition;
-import be.cytomine.domain.social.PersistentProjectConnection;
 import be.cytomine.domain.social.PersistentUserPosition;
-
-import be.cytomine.repositorynosql.social.LastConnectionRepository;
+import be.cytomine.dto.image.AreaDTO;
+import be.cytomine.dto.image.Point;
 import be.cytomine.repositorynosql.social.LastUserPositionRepository;
-import be.cytomine.repositorynosql.social.PersistentProjectConnectionRepository;
 import be.cytomine.repositorynosql.social.PersistentUserPositionRepository;
 import be.cytomine.service.database.SequenceService;
-import be.cytomine.service.dto.AreaDTO;
-import be.cytomine.service.dto.Point;
-import be.cytomine.service.security.SecUserService;
+
 import com.mongodb.client.MongoClient;
 import org.apache.commons.lang3.time.DateUtils;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.ConcurrentWebSocketSessionDecorator;
 
-import javax.transaction.Transactional;
-import java.awt.*;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
+import jakarta.transaction.Transactional;
+
 import java.util.*;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
-import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -102,17 +89,17 @@ public class UserPositionServiceTests {
     }
 
     public static final AreaDTO USER_VIEW = new AreaDTO(
-            new be.cytomine.service.dto.Point(1000d, 1000d),
-            new be.cytomine.service.dto.Point(4000d, 1000d),
-            new be.cytomine.service.dto.Point(4000d, 4000d),
-            new be.cytomine.service.dto.Point(1000d, 4000d)
+            new be.cytomine.dto.image.Point(1000d, 1000d),
+            new be.cytomine.dto.image.Point(4000d, 1000d),
+            new be.cytomine.dto.image.Point(4000d, 4000d),
+            new be.cytomine.dto.image.Point(1000d, 4000d)
     );
 
     public static final AreaDTO ANOTHER_USER_VIEW = new AreaDTO(
-            new be.cytomine.service.dto.Point(3000d, 3000d),
-            new be.cytomine.service.dto.Point(9000d, 3000d),
-            new be.cytomine.service.dto.Point(9000d, 9000d),
-            new be.cytomine.service.dto.Point(3000d, 9000d)
+            new be.cytomine.dto.image.Point(3000d, 3000d),
+            new be.cytomine.dto.image.Point(9000d, 3000d),
+            new be.cytomine.dto.image.Point(9000d, 9000d),
+            new be.cytomine.dto.image.Point(3000d, 9000d)
     );
 
     PersistentUserPosition given_a_persistent_user_position(Date creation, User user, SliceInstance sliceInstance) {
@@ -444,7 +431,6 @@ public class UserPositionServiceTests {
     public void list_followers_for_not_followed_user() {
         User user = builder.given_a_user();
         ImageInstance imageInstance = builder.given_an_image_instance();
-        // WebSocketUserPositionHandler.sessions.put(user.getId().toString(), new ConcurrentWebSocketSessionDecorator[]{new ConcurrentWebSocketSessionDecorator(mock(WebSocketSession.class), 0, 0)});
         List<String> users = userPositionService.listFollowers(user.getId(), imageInstance.getId());
         assertThat(users.size()).isEqualTo(0);
     }

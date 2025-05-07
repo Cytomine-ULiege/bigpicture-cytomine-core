@@ -26,9 +26,7 @@ import be.cytomine.domain.security.SecUser;
 import be.cytomine.exceptions.ConstraintException;
 import be.cytomine.exceptions.ForbiddenException;
 import be.cytomine.exceptions.ObjectNotFoundException;
-import be.cytomine.exceptions.WrongArgumentException;
 import be.cytomine.repository.image.*;
-import be.cytomine.repository.meta.AttachedFileRepository;
 import be.cytomine.service.CurrentRoleService;
 import be.cytomine.service.CurrentUserService;
 import be.cytomine.service.ModelService;
@@ -42,17 +40,15 @@ import be.cytomine.utils.Task;
 import be.cytomine.utils.filters.SQLSearchParameter;
 import be.cytomine.utils.filters.SearchParameterEntry;
 import be.cytomine.utils.filters.SpecificationBuilder;
-import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
-import javax.persistence.criteria.Join;
-import javax.transaction.Transactional;
+import jakarta.persistence.criteria.Join;
+import jakarta.transaction.Transactional;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -309,22 +305,6 @@ public class AbstractImageService extends ModelService {
 
     }
 
-    private boolean hasProfile(AbstractImage image) {
-        return companionFileRepository.countByImageAndType(image, "HDF5")>0;
-    }
-
-
-
-    /**
-     * Get all image servers for an image id
-     */
-//    @Deprecated
-//    List<String> imageServers(Long abstractImageId) {
-//        AbstractImage image = find(abstractImageId).orElseThrow(() -> new ObjectNotFoundException("AbstractImage", abstractImageId));
-//        AbstractSlice slice = getReferenceSlice();
-//        return [imageServersURLs : [slice?.uploadedFile?.imageServer?.url + "/slice/tile?zoomify=" + slice?.path]]
-//    }
-
     @Override
     public List<Object> getStringParamsI18n(CytomineDomain domain) {
         return List.of(domain.getId(), StringUtils.getBlankIfNull(((AbstractImage) domain).getOriginalFilename()));
@@ -337,7 +317,6 @@ public class AbstractImageService extends ModelService {
         deleteDependentAttachedFile((AbstractImage)domain, transaction, task);
         deleteDependentNestedImageInstance((AbstractImage)domain, transaction, task);
     }
-
 
     private void  deleteDependentAbstractSlice(AbstractImage ai, Transaction transaction, Task task) {
         List<AbstractSlice> slices = abstractSliceRepository.findAllByImage(ai);
@@ -354,7 +333,6 @@ public class AbstractImageService extends ModelService {
                     "in projects " + images.stream().map(x -> x.getProject().getName()).collect(Collectors.joining(",")));
         }
     }
-
 
     private void deleteDependentCompanionFile (AbstractImage ai, Transaction transaction, Task task) {
         List<CompanionFile> companionFiles = companionFileRepository.findAllByImage(ai);

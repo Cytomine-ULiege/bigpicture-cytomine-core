@@ -21,9 +21,9 @@ import be.cytomine.utils.JsonObject;
 import lombok.Getter;
 import lombok.Setter;
 
-import javax.persistence.*;
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.NotNull;
+import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
@@ -55,17 +55,6 @@ public class Term extends CytomineDomain {
     private Set<RelationTerm> relationsRight  = new HashSet<>();
 
     private String color;
-
-
-//    @PrePersist
-//    public void beforeCreate() {
-//        super.beforeInsert();
-//    }
-//
-//    @PreUpdate
-//    public void beforeUpdate() {
-//        super.beforeUpdate();
-//    }
 
     public CytomineDomain buildDomainFromJson(JsonObject json, EntityManager entityManager) {
         Term term = this;

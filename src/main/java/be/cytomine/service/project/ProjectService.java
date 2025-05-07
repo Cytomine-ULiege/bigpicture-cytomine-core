@@ -30,6 +30,7 @@ import be.cytomine.domain.security.SecUser;
 import be.cytomine.domain.security.User;
 import be.cytomine.dto.DatedCytomineDomain;
 import be.cytomine.dto.NamedCytomineDomain;
+import be.cytomine.dto.ProjectBounds;
 import be.cytomine.exceptions.*;
 import be.cytomine.repository.command.CommandHistoryRepository;
 import be.cytomine.repository.command.CommandRepository;
@@ -45,7 +46,6 @@ import be.cytomine.service.CurrentRoleService;
 import be.cytomine.service.CurrentUserService;
 import be.cytomine.service.ModelService;
 import be.cytomine.service.PermissionService;
-import be.cytomine.service.dto.ProjectBounds;
 import be.cytomine.service.image.ImageInstanceService;
 import be.cytomine.service.ontology.AlgoAnnotationTermService;
 import be.cytomine.service.ontology.AnnotationTermService;
@@ -75,11 +75,11 @@ import org.springframework.security.acls.domain.BasePermission;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
-import javax.mail.MessagingException;
-import javax.persistence.Query;
-import javax.persistence.Tuple;
-import javax.persistence.TupleElement;
-import javax.transaction.Transactional;
+import jakarta.mail.MessagingException;
+import jakarta.persistence.Query;
+import jakarta.persistence.Tuple;
+import jakarta.persistence.TupleElement;
+import jakarta.transaction.Transactional;
 import java.math.BigInteger;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -511,7 +511,7 @@ public class ProjectService extends ModelService {
         for (Map.Entry<String, Object> entry : mapParams.entrySet()) {
             query.setParameter(entry.getKey(), entry.getValue());
         }
-        long count = ((BigInteger)query.getResultList().get(0)).longValue();
+        long count = (Long)query.getResultList().get(0);
         Page<JsonObject> page = PageUtils.buildPageFromPageResults(results, max, offset, count);
         return page;
 
@@ -522,6 +522,10 @@ public class ProjectService extends ModelService {
 
         if (max == 0) {
             max = Long.MAX_VALUE;
+        }
+
+        if (projects != null && projects.isEmpty()) {
+            return new ArrayList<>();
         }
 
         String select = "SELECT ch.id as id, ch.created as created, ch.message as message, " +
@@ -570,19 +574,12 @@ public class ProjectService extends ModelService {
         return data;
     }
 
-
-
     public List<Project> listByOntology(Ontology ontology) {
         if (currentRoleService.isAdminByNow(currentUserService.getCurrentUser())) {
             return projectRepository.findAllByOntology(ontology);
         }
         return projectRepository.findAllProjectForUserByOntology(currentUserService.getCurrentUsername(),ontology);
     }
-
-//    List<Software> listBySoftware(Software software) {
-//        // TODO:
-//        throw new RuntimeException("TODO");
-//    }
 
     public List<CommandHistory> lastAction(Project project, int max) {
         securityACLService.check(project, READ);
@@ -681,7 +678,6 @@ public class ProjectService extends ModelService {
 
         return commandResponse;
     }
-
 
     public CommandResponse update(CytomineDomain domain, JsonObject jsonNewData, Transaction transaction) {
         return update(domain, jsonNewData, transaction, null);
@@ -970,7 +966,6 @@ public class ProjectService extends ModelService {
         project.setCountImages(imageInstanceRepository.countAllByProject(project));
     }
 
-
     protected void beforeDelete(CytomineDomain domain) {
         Project project = (Project)domain;
         commandHistoryRepository.deleteAllByProject(project);
@@ -978,7 +973,6 @@ public class ProjectService extends ModelService {
         redoStackItemRepository.deleteAllByCommand_Project(project);
         commandRepository.deleteAllByProject(project);
     }
-
 
     public List<Object> getStringParamsI18n(CytomineDomain domain) {
         return List.of(domain.getId(), ((Project)domain).getName());
@@ -998,7 +992,6 @@ public class ProjectService extends ModelService {
         deleteDependentImageInstance((Project) domain, transaction, task);
         deleteDependentRepresentativeUser((Project) domain, transaction, task);
         deleteDependentMetadata(domain, transaction, task);
-        //TODO: only that? software project? ...
     }
 
     private void deleteDependentRepresentativeUser(Project domain, Transaction transaction, Task task) {

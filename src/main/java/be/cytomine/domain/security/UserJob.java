@@ -16,11 +16,10 @@ package be.cytomine.domain.security;
 * limitations under the License.
 */
 
-import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 
 @Entity
 @Getter
@@ -35,16 +34,6 @@ public class UserJob extends SecUser {
     public UserJob() {
         super();
     }
-
-//    @PrePersist
-//    public void beforeCreate() {
-//        super.beforeInsert();
-//    }
-//
-//    @PreUpdate
-//    public void beforeUpdate() {
-//        super.beforeUpdate();
-//    }
 
     @Override
     public String toJSON() {

@@ -23,9 +23,9 @@ import be.cytomine.utils.JsonObject;
 import lombok.Getter;
 import lombok.Setter;
 
-import javax.persistence.*;
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.NotNull;
+import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -44,22 +44,10 @@ public class Ontology extends CytomineDomain {
     protected User user;
 
     @OneToMany(fetch = FetchType.LAZY, mappedBy="ontology")
-//    @JoinColumn(referencedColumnName = "ontology_id", nullable = true)
     protected Set<Project> projects = new HashSet<>();
 
     @OneToMany(fetch = FetchType.LAZY, mappedBy="ontology")
-//    @JoinColumn(referencedColumnName = "ontology_id", nullable = true)
     protected Set<Term> terms = new HashSet<>();
-
-//    @PrePersist
-//    public void beforeCreate() {
-//        super.beforeInsert();
-//    }
-//
-//    @PreUpdate
-//    public void beforeUpdate() {
-//        super.beforeUpdate();
-//    }
 
     public CytomineDomain buildDomainFromJson(JsonObject json, EntityManager entityManager) {
         Ontology ontology = this;
@@ -161,7 +149,6 @@ public class Ontology extends CytomineDomain {
     public CytomineDomain container() {
         return this;
     }
-
 
     @Override
     public String toJSON() {

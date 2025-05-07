@@ -17,17 +17,15 @@ package be.cytomine.domain.security;
 */
 
 import be.cytomine.domain.CytomineDomain;
-import be.cytomine.domain.ontology.Term;
 import be.cytomine.exceptions.WrongArgumentException;
 import be.cytomine.utils.JsonObject;
 import lombok.Getter;
 import lombok.Setter;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import javax.persistence.*;
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.NotNull;
+import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.util.*;
 
 @Entity
@@ -37,13 +35,6 @@ import java.util.*;
 @DiscriminatorColumn(name="class",
         discriminatorType = DiscriminatorType.STRING)
 public class SecUser extends CytomineDomain {
-
-
-//    @Id
-//    @GeneratedValue(strategy = GenerationType.AUTO, generator = "myGen")
-//    @SequenceGenerator(name = "myGen", sequenceName = "hibernate_sequence", allocationSize=1)
-//    protected Long id;
-
 
     @NotNull
     @NotBlank
@@ -75,7 +66,6 @@ public class SecUser extends CytomineDomain {
 
     protected Boolean passwordExpired = false;
 
-
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
             name = "sec_user_sec_role",
@@ -90,7 +80,6 @@ public class SecUser extends CytomineDomain {
 
     public SecUser() {
     }
-
 
     public String humanUsername() {
         return username;

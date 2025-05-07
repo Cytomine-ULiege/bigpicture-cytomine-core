@@ -129,39 +129,6 @@ public class SecurityUtils {
                 .map(GrantedAuthority::getAuthority);
     }
 
-//    /**
-//     * Execute a closure with the current authentication. Assumes that there's an authentication in the
-//     * http session and that the closure is running in a separate thread from the web request, so the
-//     * context and authentication aren't available to the standard ThreadLocal.
-//     *
-//     * @param closure the code to run
-//     * @return the closure's return value
-//     */
-//    public static Object doWithAuth(@SuppressWarnings("rawtypes") final Closure closure) {
-//        boolean set = false;
-//        if (SecurityContextHolder.getContext().getAuthentication() == null && SecurityRequestHolder.getRequest() != null) {
-//            HttpSession httpSession = SecurityRequestHolder.getRequest().getSession(false);
-//            SecurityContext securityContext = null;
-//            if (httpSession != null) {
-//                securityContext = (SecurityContext)httpSession.getAttribute(
-//                        HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY);
-//                if (securityContext != null) {
-//                    SecurityContextHolder.setContext(securityContext);
-//                    set = true;
-//                }
-//            }
-//        }
-//
-//        try {
-//            return closure.call();
-//        }
-//        finally {
-//            if (set) {
-//                SecurityContextHolder.clearContext();
-//            }
-//        }
-//    }
-
     public static void doWithAuth(ApplicationContext applicationContext, final String username, @SuppressWarnings("rawtypes") final Runnable executable) {
         Authentication previousAuth = SecurityContextHolder.getContext().getAuthentication();
         reauthenticate(applicationContext, username, null);

@@ -24,14 +24,13 @@ import be.cytomine.domain.security.SecUser;
 import be.cytomine.domain.security.User;
 import be.cytomine.domain.social.LastUserPosition;
 import be.cytomine.domain.social.PersistentUserPosition;
-import be.cytomine.exceptions.ServerException;
+import be.cytomine.dto.image.AreaDTO;
 import be.cytomine.repository.project.ProjectRepository;
 import be.cytomine.repository.security.SecUserRepository;
 import be.cytomine.repositorynosql.social.*;
 import be.cytomine.service.AnnotationListingService;
 import be.cytomine.service.CurrentUserService;
 import be.cytomine.service.database.SequenceService;
-import be.cytomine.service.dto.AreaDTO;
 import be.cytomine.service.security.SecUserService;
 import be.cytomine.service.security.SecurityACLService;
 import be.cytomine.utils.JsonObject;
@@ -39,6 +38,7 @@ import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.Accumulators;
 import com.mongodb.client.model.Projections;
+import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.time.DateUtils;
 import org.bson.Document;
@@ -53,9 +53,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.socket.handler.ConcurrentWebSocketSessionDecorator;
 
-import javax.annotation.PostConstruct;
-import javax.persistence.EntityManager;
-import javax.transaction.Transactional;
+import jakarta.persistence.EntityManager;
+import jakarta.transaction.Transactional;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -122,15 +121,6 @@ public class UserPositionService {
     @Autowired
     SequenceService sequenceService;
 
-//
-//    public LastUserPosition add(SecUser user, SliceInstance sliceInstance) {
-//
-//    }
-//
-//    public LastUserPosition add(SecUser user, ImageInstance imageInstance) {
-//
-//    }
-
     // usersTracked key -> "trackedUserId/imageId"
     public static Map<String, List<User>> broadcasters = new ConcurrentHashMap<>();
 
@@ -165,14 +155,6 @@ public class UserPositionService {
         position.setUpdated(created);
         position.setImageName(imageInstance.getBlindInstanceFilename());
         lastUserPositionRepository.insert(position);
-
-        if(lastPosition.isPresent() && !LastUserPosition.isSameLocation(lastPosition.get().getLocation(), currentLocation)){
-            try{
-                webSocketUserPositionHandler.sendPositionToFollowers(user.getId().toString(), imageInstance.getId().toString(), position.toJsonObject().toJsonString());
-            }catch (ServerException e){
-                log.error(e.getMessage());
-            }
-        }
 
         PersistentUserPosition persistedPosition = new PersistentUserPosition();
         persistedPosition.setId(sequenceService.generateID());
@@ -216,6 +198,18 @@ public class UserPositionService {
     public Optional<LastUserPosition> lastPositionByUser(ImageInstance image, SliceInstance slice, SecUser user, boolean broadcast) {
         securityACLService.check(image,READ);
 
+        return getLastUserPosition(image, slice, user, broadcast);
+    }
+
+    /**
+     * TODO Do not bypass ACL checks.
+     * Temporary solution to the WebSocket issue
+     */
+    public Optional<LastUserPosition> lastPositionByUserBypassACL(ImageInstance image, SliceInstance slice, SecUser user, boolean broadcast) {
+        return getLastUserPosition(image, slice, user, broadcast);
+    }
+
+    private Optional<LastUserPosition> getLastUserPosition(ImageInstance image, SliceInstance slice, SecUser user, boolean broadcast) {
         Query query = new Query();
         query.addCriteria(Criteria.where("user").is(user.getId()));
         query.addCriteria(Criteria.where("image").is(image.getId()));

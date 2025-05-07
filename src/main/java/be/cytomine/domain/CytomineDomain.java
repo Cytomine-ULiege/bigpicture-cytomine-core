@@ -26,11 +26,11 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
-import javax.persistence.*;
-import javax.validation.ConstraintViolation;
-import javax.validation.Validation;
-import javax.validation.Validator;
-import javax.validation.ValidatorFactory;
+import jakarta.persistence.*;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Validation;
+import jakarta.validation.Validator;
+import jakarta.validation.ValidatorFactory;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -40,18 +40,15 @@ import java.util.stream.Collectors;
 @EntityListeners(AuditingEntityListener.class)
 public abstract class CytomineDomain {
 
-//    @Id
-//    @GeneratedValue(strategy = GenerationType.AUTO, generator = "myGenerator")
-//    //@SequenceGenerator(name = "myGen", sequenceName = "hibernate_sequence", allocationSize=1)
-//    @GenericGenerator(name = "myGenerator", strategy = "be.cytomine.config.CustomIdentifierGenerator")
     @GenericGenerator(
-            name = "myGenerator",
-            strategy = "be.cytomine.config.CustomIdentifierGenerator",
-            parameters = {
-                    @org.hibernate.annotations.Parameter(name = "sequence_name", value = "hibernate_sequence")
-            }
+        name = "myGenerator",
+        strategy = "be.cytomine.config.CustomIdentifierGenerator",
+        parameters = {
+            @org.hibernate.annotations.Parameter(name = "sequence_name", value = "hibernate_sequence"),
+            @org.hibernate.annotations.Parameter(name = "increment_size", value = "1")
+        }
     )
-    @GeneratedValue(generator = "myGenerator")
+    @GeneratedValue(strategy = GenerationType.SEQUENCE,generator = "myGenerator")
     @Id
     protected Long id;
 
@@ -98,14 +95,6 @@ public abstract class CytomineDomain {
     public CytomineDomain buildDomainFromJson(JsonObject json, EntityManager entityManager) {
         return null;
     }
-
-//    public static CytomineDomain buildDomainFromJson(JsonObject json) {
-//        return null;
-//    }
-//
-//    public static CytomineDomain buildDomainFromJson(JsonObject json, CytomineDomain domain) {
-//        return null;
-//    }
 
     public List<ValidationError> validate() {
         ValidatorFactory factory = Validation.buildDefaultValidatorFactory();

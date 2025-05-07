@@ -19,18 +19,15 @@ package be.cytomine.service.ontology;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.stream.Collectors;
-import javax.persistence.EntityManager;
-import javax.transaction.Transactional;
 
-import com.github.tomakehurst.wiremock.WireMockServer;
-import com.github.tomakehurst.wiremock.client.WireMock;
-import com.vividsolutions.jts.io.ParseException;
-import com.vividsolutions.jts.io.WKTReader;
+import jakarta.persistence.EntityManager;
+import jakarta.transaction.Transactional;
 import org.apache.commons.lang3.time.DateUtils;
 import org.assertj.core.api.AssertionsForClassTypes;
 import org.junit.jupiter.api.*;
+import org.locationtech.jts.io.ParseException;
+import org.locationtech.jts.io.WKTReader;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -329,12 +326,6 @@ public class UserAnnotationServiceTests {
     void add_big_user_annotation_with_max_number_of_points() throws ParseException {
         UserAnnotation userAnnotation = builder.given_a_not_persisted_user_annotation();
         userAnnotation.setLocation(new WKTReader().read(TestUtils.getResourceFileAsString("dataset/very_big_annotation.txt")));
-        userAnnotation
-            .getSlice()
-            .getBaseSlice()
-            .getUploadedFile()
-            .getImageServer()
-            .setUrl("http://localhost:8888");
 
         JsonObject jsonObject = userAnnotation.toJsonObject();
         jsonObject.put("maxPoint", 100);
@@ -454,12 +445,6 @@ public class UserAnnotationServiceTests {
                 userAnnotation.getImage().getBaseImage().getWidth() + " 0," +
                 "-1 -1))"));
         JsonObject jsonObject = userAnnotation.toJsonObject();
-        userAnnotation
-            .getSlice()
-            .getBaseSlice()
-            .getUploadedFile()
-            .getImageServer()
-            .setUrl("http://localhost:8888");
 
         CommandResponse commandResponse = userAnnotationService.add(jsonObject);
         assertThat(commandResponse.getStatus()).isEqualTo(200);
@@ -507,12 +492,6 @@ public class UserAnnotationServiceTests {
     @Test
     void add_user_annotation_slice_null_retrieve_reference_slice() {
         UserAnnotation userAnnotation = builder.given_a_not_persisted_user_annotation();
-        userAnnotation
-            .getSlice()
-            .getBaseSlice()
-            .getUploadedFile()
-            .getImageServer()
-            .setUrl("http://localhost:8888");
 
         JsonObject jsonObject = userAnnotation.toJsonObject();
         jsonObject.put("slice", null);
@@ -629,12 +608,6 @@ public class UserAnnotationServiceTests {
     @Test
     void delete_user_annotation_with_terms() {
         UserAnnotation userAnnotation = builder.given_a_not_persisted_user_annotation();
-        userAnnotation
-            .getSlice()
-            .getBaseSlice()
-            .getUploadedFile()
-            .getImageServer()
-            .setUrl("http://localhost:8888");
 
         Term term1 = builder.given_a_term(userAnnotation.getProject().getOntology());
         Term term2 = builder.given_a_term(userAnnotation.getProject().getOntology());

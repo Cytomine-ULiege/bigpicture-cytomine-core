@@ -18,10 +18,10 @@ package be.cytomine.service.ontology;
 
 import java.util.List;
 import java.util.UUID;
-import javax.transaction.Transactional;
 
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.WireMock;
+import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;

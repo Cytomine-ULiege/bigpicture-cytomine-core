@@ -19,19 +19,15 @@ package be.cytomine.domain;
 import be.cytomine.BasicInstanceBuilder;
 import be.cytomine.CytomineCoreApplication;
 import be.cytomine.domain.image.UploadedFile;
-import be.cytomine.domain.ontology.Ontology;
 import be.cytomine.repository.image.UploadedFileRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.security.test.context.support.WithMockUser;
 
-import javax.persistence.EntityManager;
-import javax.transaction.Transactional;
+import jakarta.persistence.EntityManager;
+import jakarta.transaction.Transactional;
 import java.util.Arrays;
-import java.util.Date;
-import java.util.UUID;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
@@ -68,7 +64,6 @@ public class UploadedFileDomainTests {
         uploadedFile = uploadedFileRepository.save(uploadedFile);
         entityManager.flush();
         Long id = uploadedFile.getId();
-        //entityManager.detach(uploadedFile);
         entityManager.refresh(uploadedFile);
         System.out.println("id = " + id);
         uploadedFile = entityManager.find(UploadedFile.class, id);

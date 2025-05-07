@@ -17,17 +17,16 @@ package be.cytomine.utils;
 */
 
 import be.cytomine.domain.CytomineDomain;
-import be.cytomine.dto.JsonInput;
+import be.cytomine.dto.json.JsonInput;
 import be.cytomine.exceptions.ServerException;
 import be.cytomine.exceptions.WrongArgumentException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import liquibase.pro.packaged.W;
 
-import javax.persistence.EntityManager;
-import javax.persistence.Query;
-import java.text.SimpleDateFormat;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.Query;
+
 import java.util.*;
 import java.util.stream.Collectors;
 

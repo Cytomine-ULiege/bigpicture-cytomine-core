@@ -17,13 +17,10 @@ package be.cytomine.service;
 */
 
 import be.cytomine.domain.CytomineDomain;
-import be.cytomine.domain.ValidationError;
 import be.cytomine.domain.command.Command;
 import be.cytomine.domain.command.DeleteCommand;
 import be.cytomine.domain.command.Transaction;
-import be.cytomine.domain.image.ImageInstance;
 import be.cytomine.domain.meta.AttachedFile;
-import be.cytomine.domain.meta.Description;
 import be.cytomine.domain.meta.Property;
 import be.cytomine.domain.meta.TagDomainAssociation;
 import be.cytomine.domain.ontology.AlgoAnnotation;
@@ -39,20 +36,17 @@ import be.cytomine.service.security.SecurityACLService;
 import be.cytomine.utils.CommandResponse;
 import be.cytomine.utils.JsonObject;
 import be.cytomine.utils.Task;
-import liquibase.pro.packaged.J;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.dao.OptimisticLockingFailureException;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-import javax.persistence.EntityManager;
-import javax.validation.ConstraintViolationException;
+import jakarta.persistence.EntityManager;
+import jakarta.validation.ConstraintViolationException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 
@@ -71,15 +65,9 @@ public abstract class ModelService<T extends CytomineDomain> {
     @Autowired
     SecurityACLService securityACLService;
 
-//    @Autowired
-//    ResponseService responseService;
-
     @Autowired
     ApplicationContext applicationContext;
 
-//    @Autowired
-//    TaskService taskService;
-//
     @Autowired
     CommandService commandService;
 
@@ -101,16 +89,6 @@ public abstract class ModelService<T extends CytomineDomain> {
     @Autowired
     TagDomainAssociationService tagDomainAssociationService;
 
-//    def responseService
-
-//    def cytomineService
-//    def grailsApplication
-//    def taskService
-//    def attachedFileService
-//    def descriptionService
-//    def propertyService
-//    def tagDomainAssociationService
-    //def securityACLService
     boolean saveOnUndoRedoStack = true;
 
     public Long generateNextId() {
@@ -122,13 +100,7 @@ public abstract class ModelService<T extends CytomineDomain> {
      */
     public void saveDomain(CytomineDomain newObject) {
         checkDoNotAlreadyExist(newObject);
-//        List<ValidationError> validationErrors = newObject.validate();
-//        if (!validationErrors.isEmpty()) {
-//            for (ValidationError validationError : validationErrors) {
-//                log.error(validationError.getProperty() + " " + validationError.getMessage());
-//            }
-//            throw new WrongArgumentException(validationErrors.toString());
-//        }
+
         try {
             if (newObject.getId()!=null && !entityManager.contains(newObject)) {
                 log.debug("object detached");
@@ -187,7 +159,6 @@ public abstract class ModelService<T extends CytomineDomain> {
         return executeCommand(c,task);
     }
 
-
     public CommandResponse executeCommand(Command c) {
         return executeCommand(c, null);
     }
@@ -206,21 +177,6 @@ public abstract class ModelService<T extends CytomineDomain> {
             //remove all dependent domains
 
             // TODO: delete dependency mechanism
-//            def allServiceMethods = this.getClass().getMethods()
-//            def dependencyMethods = allServiceMethods.findAll{it.name.startsWith("deleteDependent")}.unique({it.name})
-//
-//            def (ordered, unordered) = dependencyMethods.split { it.annotations.findAll{it instanceof DependencyOrder}.size() > 0  }
-//            ordered = ordered.sort{- it.annotations.find{it instanceof DependencyOrder}.order()}
-//            dependencyMethods = ordered + unordered
-//
-//            int numberOfDirectDependence = dependencyMethods.size()
-//
-//            dependencyMethods*.name.eachWithIndex { method, index ->
-//                    taskService.updateTask(task, (int)((double)index/(double)numberOfDirectDependence)*100, "")
-//                this."$method"(domainToDelete,c.transaction,task)
-//            }
-//            task
-
         }
         initCommandService();
         c.setSaveOnUndoRedoStack(this.isSaveOnUndoRedoStack()); //need to use getter method, to get child value

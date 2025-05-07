@@ -18,18 +18,18 @@ package be.cytomine.domain.image;
 
 import be.cytomine.domain.CytomineDomain;
 import be.cytomine.domain.image.server.Storage;
-import be.cytomine.domain.middleware.ImageServer;
 import be.cytomine.domain.security.SecUser;
 import be.cytomine.domain.security.UserJob;
 import be.cytomine.utils.JsonObject;
+import be.cytomine.utils.LTreeType;
 import be.cytomine.utils.LongArrayToBytesConverter;
 import lombok.Getter;
 import lombok.Setter;
+
+import jakarta.persistence.*;
 import org.hibernate.annotations.Type;
 
-import javax.persistence.*;
 import java.io.Serializable;
-import java.nio.file.Paths;
 import java.util.Set;
 
 @Entity
@@ -47,8 +47,6 @@ public class UploadedFile extends CytomineDomain implements Serializable {
     @JoinColumn(name = "storage_id", nullable = true)
     private Storage storage;
 
-    //@Lob
-    //@Type(type="org.hibernate.type.BinaryType")
     @Convert(converter = LongArrayToBytesConverter.class)
     private Long[] projects;
 
@@ -57,10 +55,6 @@ public class UploadedFile extends CytomineDomain implements Serializable {
     private String originalFilename;
 
     private String ext;
-
-    @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "image_server_id", nullable = true)
-    private ImageServer imageServer;
 
     private String contentType;
 
@@ -72,8 +66,7 @@ public class UploadedFile extends CytomineDomain implements Serializable {
 
     private int status = 0;
 
-    @Column(columnDefinition = "ltree")
-    @Type(type = "be.cytomine.utils.LTreeType")
+    @Type(LTreeType.class)
     private String lTree;
 
     @Override
@@ -90,7 +83,6 @@ public class UploadedFile extends CytomineDomain implements Serializable {
         uploadedFile.user = user;
 
         uploadedFile.parent = (UploadedFile)json.getJSONAttrDomain(entityManager, "parent", new UploadedFile(), false);
-        uploadedFile.imageServer = (ImageServer)json.getJSONAttrDomain(entityManager, "imageServer", new ImageServer(), true);
         uploadedFile.storage = (Storage)json.getJSONAttrDomain(entityManager, "storage", new Storage(), true);
 
         uploadedFile.filename = json.getJSONAttrStr("filename");
@@ -109,7 +101,6 @@ public class UploadedFile extends CytomineDomain implements Serializable {
         UploadedFile uploadedFile = (UploadedFile)domain;
         returnArray.put("user", (uploadedFile.getUser()!=null ? uploadedFile.getUser().getId() : null));
         returnArray.put("parent", (uploadedFile.getParent()!=null ? uploadedFile.getParent().getId() : null));
-        returnArray.put("imageServer", (uploadedFile.getImageServer()!=null ? uploadedFile.getImageServer().getId() : null));
         returnArray.put("storage", (uploadedFile.getStorage()!=null ? uploadedFile.getStorage().getId() : null));
         returnArray.put("originalFilename", uploadedFile.getOriginalFilename());
         returnArray.put("filename", uploadedFile.getFilename());
@@ -159,14 +150,6 @@ public class UploadedFile extends CytomineDomain implements Serializable {
     @Override
     public JsonObject toJsonObject() {
         return getDataFromDomain(this);
-    }
-
-    public String getImageServerUrl() {
-        return this.getImageServer()!=null ? this.getImageServer().getUrl() : null;
-    }
-
-    public String getImageServerInternalUrl() {
-        return this.getImageServer()!=null ? this.getImageServer().getInternalUrl() : null;
     }
 
     public boolean isVirtual() {

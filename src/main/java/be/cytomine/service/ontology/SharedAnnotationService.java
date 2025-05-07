@@ -19,8 +19,8 @@ package be.cytomine.service.ontology;
 import be.cytomine.domain.CytomineDomain;
 import be.cytomine.domain.command.*;
 import be.cytomine.domain.ontology.*;
-import be.cytomine.domain.project.Project;
 import be.cytomine.domain.security.*;
+import be.cytomine.dto.image.CropParameter;
 import be.cytomine.exceptions.*;
 import be.cytomine.repository.ontology.*;
 import be.cytomine.repository.security.ForgotPasswordTokenRepository;
@@ -29,7 +29,6 @@ import be.cytomine.repository.security.SecUserSecRoleRepository;
 import be.cytomine.service.CurrentRoleService;
 import be.cytomine.service.CurrentUserService;
 import be.cytomine.service.ModelService;
-import be.cytomine.service.dto.CropParameter;
 import be.cytomine.service.middleware.ImageServerService;
 import be.cytomine.service.security.SecUserService;
 import be.cytomine.service.security.SecurityACLService;
@@ -37,17 +36,14 @@ import be.cytomine.service.utils.NotificationService;
 import be.cytomine.utils.CommandResponse;
 import be.cytomine.utils.JsonObject;
 import be.cytomine.utils.Task;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.time.DateUtils;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 import javax.imageio.ImageIO;
-import javax.mail.MessagingException;
-import javax.transaction.Transactional;
+import jakarta.mail.MessagingException;
+import jakarta.transaction.Transactional;
 import java.awt.image.BufferedImage;
 import java.io.*;
 import java.util.*;
@@ -165,7 +161,7 @@ public class SharedAnnotationService extends ModelService {
 
             BufferedImage bufferedImage;
             try {
-                InputStream is = new ByteArrayInputStream(imageServerService.crop(annotation, cropParameter, null).getContent());
+                InputStream is = new ByteArrayInputStream(imageServerService.crop(annotation, cropParameter, null, null).getBody());
                 bufferedImage = ImageIO.read(is);
             } catch(Exception e) {
                 bufferedImage = null;

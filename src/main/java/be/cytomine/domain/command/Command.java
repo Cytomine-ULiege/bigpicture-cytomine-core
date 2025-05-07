@@ -22,11 +22,10 @@ import be.cytomine.domain.security.SecUser;
 import be.cytomine.service.ModelService;
 import be.cytomine.utils.CommandResponse;
 import be.cytomine.utils.JsonObject;
-import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 
 @Entity
 @Getter
@@ -35,11 +34,6 @@ import javax.persistence.*;
 @DiscriminatorColumn(name="class",
         discriminatorType = DiscriminatorType.STRING)
 public abstract class Command extends CytomineDomain {
-
-//    @Id
-//    @GeneratedValue(strategy = GenerationType.AUTO, generator = "myGen")
-//    @SequenceGenerator(name = "myGen", sequenceName = "hibernate_sequence", allocationSize=1)
-//    protected Long id;
 
     /**
      * JSON string with relevant field data
@@ -103,7 +97,6 @@ public abstract class Command extends CytomineDomain {
      */
     protected boolean refuseUndo = false;
 
-
     public String toString() {
         return this.getClass().getSimpleName() +" "+this.id + "[" + this.created + "]";
     }
@@ -129,7 +122,6 @@ public abstract class Command extends CytomineDomain {
     }
 
     public abstract CommandResponse execute(ModelService service);
-
 
     /**
      * Define fields available for JSON response

@@ -1,20 +1,15 @@
 package be.cytomine.authorization.project;
 
-/*
-* Copyright (c) 2009-2022. Authors: see NOTICE file.
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*/
+import java.util.*;
+
+import org.junit.jupiter.api.*;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.security.acls.domain.BasePermission;
+import org.springframework.security.acls.model.Permission;
+import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 
@@ -65,38 +60,37 @@ import static org.springframework.security.acls.domain.BasePermission.ADMINISTRA
 @Transactional
 public class ProjectAuthorizationTest extends CRUDAuthorizationTest {
 
-    @Autowired
-    ProjectService projectService;
+    private ProjectService projectService;
 
     @Autowired
-    BasicInstanceBuilder builder;
+    private BasicInstanceBuilder builder;
 
     @Autowired
-    SecUserService secUserService;
+    private SecUserService secUserService;
 
     @Autowired
-    ProjectRepresentativeUserService projectRepresentativeUserService;
+    private ProjectRepresentativeUserService projectRepresentativeUserService;
 
     @Autowired
-    ProjectRepresentativeUserRepository projectRepresentativeUserRepository;
+    private ProjectRepresentativeUserRepository projectRepresentativeUserRepository;
 
     @Autowired
-    DescriptionService descriptionService;
+    private DescriptionService descriptionService;
 
     @Autowired
-    AttachedFileService attachedFileService;
+    private AttachedFileService attachedFileService;
 
     @Autowired
-    PropertyService propertyService;
+    private PropertyService propertyService;
 
     @Autowired
-    ImageInstanceService imageInstanceService;
+    private ImageInstanceService imageInstanceService;
 
     @Autowired
-    TagDomainAssociationService tagDomainAssociationService;
+    private TagDomainAssociationService tagDomainAssociationService;
 
     @Autowired
-    UserAnnotationService userAnnotationService;
+    private UserAnnotationService userAnnotationService;
 
     private Project project = null;
 
@@ -183,8 +177,7 @@ public class ProjectAuthorizationTest extends CRUDAuthorizationTest {
     @WithMockUser(username = USER_NO_ACL)
     public void user_no_acl_cannot_list_projects(){
         expectForbidden(() -> {
-            projectService.list(null, new ProjectSearchExtension(), new ArrayList<>(), "created", "desc", 0L, 0L)
-                        .stream().map(x -> x.get("id"));
+            projectService.list(null, new ProjectSearchExtension(), new ArrayList<>(), "created", "desc", 0L, 0L).stream().map(x -> x.get("id"));
         });
     }
 
@@ -209,7 +202,6 @@ public class ProjectAuthorizationTest extends CRUDAuthorizationTest {
         expectForbidden(() -> {secUserService.addUserToProject(builder.given_a_user(), project, false); });
     }
 
-
     @Test
     @WithMockUser(username = USER_ACL_ADMIN)
     public void classic_project_scenario_for_admin(){
@@ -227,7 +219,6 @@ public class ProjectAuthorizationTest extends CRUDAuthorizationTest {
         ProjectRepresentativeUser projectRepresentativeUser = builder.given_a_not_persisted_project_representative_user(
                 project, user
         );
-
 
         // add another representative so that we can delete the first one
         expectOK(() -> {secUserService.addUserToProject(builder.given_superadmin(), project, false); });
@@ -268,7 +259,6 @@ public class ProjectAuthorizationTest extends CRUDAuthorizationTest {
         projectRepresentativeUserRepository.save(builder.given_a_not_persisted_project_representative_user(
                 project, builder.given_superadmin()
         ));
-//        expectOK(() -> {secUserService.addUserToProject(builder.given_superadmin(), project, false); });
 
         expectForbidden(() -> {projectRepresentativeUserService.add(projectRepresentativeUser.toJsonObject());});
         builder.persistAndReturn(projectRepresentativeUser);
@@ -385,10 +375,10 @@ public class ProjectAuthorizationTest extends CRUDAuthorizationTest {
         expectOK(() -> imageInstanceService.stopReview(image, false));
 
         //add annotation on my layer
-        expectOK(() -> userAnnotationService.add(setImageServerUrl(builder.given_a_user_annotation(slice)).toJsonObject()));
+        expectOK(() -> userAnnotationService.add(builder.given_a_user_annotation(slice).toJsonObject()));
         //add annotation on other layers
-        expectOK(() -> userAnnotationService.add(setImageServerUrl(builder.given_a_user_annotation(sliceUser)).toJsonObject()));
-        expectOK(() -> userAnnotationService.add(setImageServerUrl(builder.given_a_user_annotation(sliceAdmin)).toJsonObject()));
+        expectOK(() -> userAnnotationService.add(builder.given_a_user_annotation(sliceUser).toJsonObject()));
+        expectOK(() -> userAnnotationService.add(builder.given_a_user_annotation(sliceAdmin).toJsonObject()));
 
         //update, delete annotation (simple user data)
         expectOK(() -> userAnnotationService.update(annotationUser, annotationUser.toJsonObject()));
@@ -521,10 +511,10 @@ public class ProjectAuthorizationTest extends CRUDAuthorizationTest {
         expectOK(() -> imageInstanceService.stopReview(image, false));
 
         //add annotation on my layer
-        expectOK(() -> userAnnotationService.add(setImageServerUrl(builder.given_a_user_annotation(slice)).toJsonObject()));
+        expectOK(() -> userAnnotationService.add(builder.given_a_user_annotation(slice).toJsonObject()));
         //add annotation on other layers
-        expectOK(() -> userAnnotationService.add(setImageServerUrl(builder.given_a_user_annotation(sliceUser)).toJsonObject()));
-        expectOK(() -> userAnnotationService.add(setImageServerUrl(builder.given_a_user_annotation(sliceAdmin)).toJsonObject()));
+        expectOK(() -> userAnnotationService.add(builder.given_a_user_annotation(sliceUser).toJsonObject()));
+        expectOK(() -> userAnnotationService.add(builder.given_a_user_annotation(sliceAdmin).toJsonObject()));
 
         //update, delete annotation (simple user data)
         expectOK(() -> userAnnotationService.update(annotationUser, annotationUser.toJsonObject()));
@@ -552,13 +542,6 @@ public class ProjectAuthorizationTest extends CRUDAuthorizationTest {
         //update, delete image instance (superadmin data)
         expectOK(() -> imageInstanceService.update(image, image.toJsonObject()));
         expectOK(() -> imageInstanceService.delete(image, null, null, false));
-    }
-
-    @Disabled("wait for software package")
-    @Test
-    @WithMockUser(username = USER_ACL_ADMIN)
-    public void classic_project_with_job_data(){
-        Assertions.fail("todo");
     }
 
     @Test
@@ -599,7 +582,6 @@ public class ProjectAuthorizationTest extends CRUDAuthorizationTest {
         expectOK(() -> {tagDomainAssociationService.add(builder.given_a_not_persisted_tag_association(builder.given_a_tag(), project).toJsonObject());});
     }
 
-
     @Test
     @WithMockUser(username = USER_ACL_READ)
     public void restricted_project_scenario_for_user(){
@@ -619,7 +601,6 @@ public class ProjectAuthorizationTest extends CRUDAuthorizationTest {
         ProjectRepresentativeUser projectRepresentativeUser = builder.given_a_not_persisted_project_representative_user(
                 project, user
         );
-
 
         // add another representative so that we can try to delete the first one
         projectRepresentativeUserRepository.save(builder.given_a_not_persisted_project_representative_user(
@@ -739,7 +720,8 @@ public class ProjectAuthorizationTest extends CRUDAuthorizationTest {
         expectForbidden(() -> imageInstanceService.startReview(image));
 
         //add annotation on my layer
-        expectOK(() -> userAnnotationService.add(setImageServerUrl(builder.given_a_user_annotation(sliceUser, userRepository.findByUsernameLikeIgnoreCase(USER_ACL_READ).get())).toJsonObject()));
+        expectOK(() -> userAnnotationService.add(builder.given_a_user_annotation(sliceUser, userRepository.findByUsernameLikeIgnoreCase(USER_ACL_READ).get()).toJsonObject()));
+
         //add annotation on other layers
         expectForbidden(() -> userAnnotationService.add(builder.given_a_user_annotation(slice).toJsonObject()));
         expectForbidden(() -> userAnnotationService.add(builder.given_a_user_annotation(sliceAdmin).toJsonObject()));
@@ -876,10 +858,10 @@ public class ProjectAuthorizationTest extends CRUDAuthorizationTest {
         expectOK(() -> imageInstanceService.stopReview(image, false));
 
         //add annotation on my layer
-        expectOK(() -> userAnnotationService.add(setImageServerUrl(builder.given_a_user_annotation(slice)).toJsonObject()));
+        expectOK(() -> userAnnotationService.add(builder.given_a_user_annotation(slice).toJsonObject()));
         //add annotation on other layers
-        expectOK(() -> userAnnotationService.add(setImageServerUrl(builder.given_a_user_annotation(sliceUser)).toJsonObject()));
-        expectOK(() -> userAnnotationService.add(setImageServerUrl(builder.given_a_user_annotation(sliceAdmin)).toJsonObject()));
+        expectOK(() -> userAnnotationService.add(builder.given_a_user_annotation(sliceUser).toJsonObject()));
+        expectOK(() -> userAnnotationService.add(builder.given_a_user_annotation(sliceAdmin).toJsonObject()));
 
         //update, delete annotation (simple user data)
         expectOK(() -> userAnnotationService.update(annotationUser, annotationUser.toJsonObject()));
@@ -909,13 +891,6 @@ public class ProjectAuthorizationTest extends CRUDAuthorizationTest {
         expectOK(() -> imageInstanceService.delete(image, null, null, false));
     }
 
-    @Disabled("wait for software package")
-    @Test
-    @WithMockUser(username = SUPERADMIN)
-    public void testRestrictedProjectWithJobData() {
-        Assertions.fail("todo");
-    }
-
     @Test
     @WithMockUser(username = USER_ACL_ADMIN)
     public void readonly_project_scenario_for_admin(){
@@ -935,7 +910,6 @@ public class ProjectAuthorizationTest extends CRUDAuthorizationTest {
                 project, user
         );
 
-
         // add another representative so that we can delete the first one
         expectOK(() -> {secUserService.addUserToProject(builder.given_superadmin(), project, false); });
         expectOK(() -> {projectRepresentativeUserService.add(builder.given_a_not_persisted_project_representative_user(
@@ -952,7 +926,6 @@ public class ProjectAuthorizationTest extends CRUDAuthorizationTest {
         expectOK(() -> {propertyService.add(builder.given_a_property(project).toJsonObject());});
         expectOK(() -> {tagDomainAssociationService.add(builder.given_a_not_persisted_tag_association(builder.given_a_tag(), project).toJsonObject());});
     }
-
 
     @Test
     @WithMockUser(username = USER_ACL_READ)
@@ -990,8 +963,6 @@ public class ProjectAuthorizationTest extends CRUDAuthorizationTest {
         expectForbidden(() -> {propertyService.add(builder.given_a_property(project).toJsonObject());});
         expectForbidden(() -> {tagDomainAssociationService.add(builder.given_a_tag_association(builder.given_a_tag(), project).toJsonObject());});
     }
-
-
 
     @Test
     @WithMockUser(username = USER_ACL_READ)
@@ -1071,7 +1042,6 @@ public class ProjectAuthorizationTest extends CRUDAuthorizationTest {
         expectForbidden(() -> { tagDomainAssociationService.add(builder.given_a_tag_association(builder.given_a_tag(), annotation).toJsonObject()); });
         expectForbidden(() -> { tagDomainAssociationService.delete(tda, null, null, false); });
 
-
         //add,update, delete attachedFile (simple user data)
         expectForbidden(() -> { attachedFileService.delete(attachedFileUser, null, null, false); });
         expectForbidden(() -> { attachedFileService.create("test.txt", new String("hello").getBytes(), "test", annotationUser.getId(), annotationUser.getClass().getName()); });
@@ -1093,13 +1063,11 @@ public class ProjectAuthorizationTest extends CRUDAuthorizationTest {
         //start reviewing image (superadmin data)
         expectForbidden(() -> { imageInstanceService.startReview(image); });
 
-
         //add annotation on my layer
         expectForbidden(() -> { userAnnotationService.add(builder.given_a_user_annotation(slice).toJsonObject()); });
         //add annotation on other layers
         expectForbidden(() -> { userAnnotationService.add(builder.given_a_user_annotation(sliceUser).toJsonObject()); });
         expectForbidden(() -> { userAnnotationService.add(builder.given_a_user_annotation(sliceAdmin).toJsonObject()); });
-
 
         //update, delete annotation (simple user data)
         expectForbidden(() -> { userAnnotationService.update(annotationUser, annotationUser.toJsonObject()); });
@@ -1113,11 +1081,8 @@ public class ProjectAuthorizationTest extends CRUDAuthorizationTest {
         expectForbidden(() -> { userAnnotationService.update(annotation, annotation.toJsonObject()); });
         expectForbidden(() -> { userAnnotationService.delete(annotation, null, null, false); });
 
-
         //add image instance
         expectForbidden(() -> { imageInstanceService.add(builder.given_a_not_persisted_image_instance(project).toJsonObject()); });
-
-
 
         //update, delete image instance (simple user data)
         expectForbidden(() -> { imageInstanceService.update(imageUser, imageUser.toJsonObject()); });
@@ -1131,7 +1096,6 @@ public class ProjectAuthorizationTest extends CRUDAuthorizationTest {
         expectForbidden(() -> { imageInstanceService.update(image, image.toJsonObject()); });
         expectForbidden(() -> { imageInstanceService.delete(image, null, null, false); });
     }
-
 
     @Test
     @WithMockUser(username = USER_ACL_ADMIN)
@@ -1236,10 +1200,10 @@ public class ProjectAuthorizationTest extends CRUDAuthorizationTest {
         expectOK(() -> imageInstanceService.stopReview(image, false));
 
         //add annotation on my layer
-        expectOK(() -> userAnnotationService.add(setImageServerUrl(builder.given_a_user_annotation(slice)).toJsonObject()));
+        expectOK(() -> userAnnotationService.add(builder.given_a_user_annotation(slice).toJsonObject()));
         //add annotation on other layers
-        expectOK(() -> userAnnotationService.add(setImageServerUrl(builder.given_a_user_annotation(sliceUser)).toJsonObject()));
-        expectOK(() -> userAnnotationService.add(setImageServerUrl(builder.given_a_user_annotation(sliceAdmin)).toJsonObject()));
+        expectOK(() -> userAnnotationService.add(builder.given_a_user_annotation(sliceUser).toJsonObject()));
+        expectOK(() -> userAnnotationService.add(builder.given_a_user_annotation(sliceAdmin).toJsonObject()));
 
         //update, delete annotation (simple user data)
         expectOK(() -> userAnnotationService.update(annotationUser, annotationUser.toJsonObject()));
@@ -1267,14 +1231,6 @@ public class ProjectAuthorizationTest extends CRUDAuthorizationTest {
         //update, delete image instance (superadmin data)
         expectOK(() -> imageInstanceService.update(image, image.toJsonObject()));
         expectOK(() -> imageInstanceService.delete(image, null, null, false));
-    }
-
-    @Disabled("wait for software package")
-    @Test
-    @WithMockUser(username = SUPERADMIN)
-    void testReadOnlyProjectWithJobData() {
-        Assertions.fail("todo");
-
     }
 
     private Map<String, Object> initProjectDataSet(Project project){
@@ -1331,7 +1287,6 @@ public class ProjectAuthorizationTest extends CRUDAuthorizationTest {
         //Create a tag
         TagDomainAssociation tdaAdmin = builder.given_a_tag_association(builder.given_a_tag(), annotationAdmin);
 
-
         result.put("imageAdmin", imageAdmin);
         result.put("sliceAdmin", sliceAdmin);
         result.put("annotationAdmin", annotationAdmin);
@@ -1339,7 +1294,6 @@ public class ProjectAuthorizationTest extends CRUDAuthorizationTest {
         result.put("propertyAdmin", propertyAdmin);
         result.put("attachedFileAdmin", attachedFileAdmin);
         result.put("tagDomainAssociationAdmin", tdaAdmin);
-
 
         /*simple user data*/
         //Create an annotation (by user)
@@ -1360,7 +1314,6 @@ public class ProjectAuthorizationTest extends CRUDAuthorizationTest {
         //Create a tag
         TagDomainAssociation tdaUser = builder.given_a_tag_association(builder.given_a_tag(), annotationUser);
 
-
         result.put("imageUser", imageUser);
         result.put("sliceUser", sliceUser);
         result.put("annotationUser", annotationUser);
@@ -1372,19 +1325,10 @@ public class ProjectAuthorizationTest extends CRUDAuthorizationTest {
         return result;
     }
 
-
-
-
     // **************
     // OVERRIDE
     // **************
-//    @Override
-//    @Test
-//    @WithMockUser(username = USER_ACL_DELETE)
-//    public void user_with_delete_permission_can_delete_domain() {
-//        expectForbidden (() -> when_i_delete_domain());
-//        // Only ACL ADMIN can delete projects
-//    }
+
     @Override
     @Test
     @WithMockUser(username = USER_NO_ACL)
@@ -1392,6 +1336,7 @@ public class ProjectAuthorizationTest extends CRUDAuthorizationTest {
         expectOK (() -> when_i_add_domain());
         // User with no ACL can create an project
     }
+
     @Override
     @Test
     @WithMockUser(username = USER_ACL_READ)
@@ -1399,8 +1344,6 @@ public class ProjectAuthorizationTest extends CRUDAuthorizationTest {
         expectOK (() -> when_i_add_domain());
         // User with READ permission can create another project
     }
-
-
 
     @Override
     public void when_i_get_domain() {
@@ -1437,7 +1380,6 @@ public class ProjectAuthorizationTest extends CRUDAuthorizationTest {
     protected Optional<Permission> minimalPermissionForEdit() {
         return Optional.of(BasePermission.WRITE);
     }
-
 
     @Override
     protected Optional<String> minimalRoleForCreate() {

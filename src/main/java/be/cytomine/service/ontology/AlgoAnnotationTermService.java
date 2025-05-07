@@ -24,34 +24,23 @@ import be.cytomine.domain.command.Transaction;
 import be.cytomine.domain.ontology.*;
 import be.cytomine.domain.project.Project;
 import be.cytomine.domain.security.SecUser;
-import be.cytomine.domain.security.User;
 import be.cytomine.domain.security.UserJob;
-import be.cytomine.exceptions.AlreadyExistException;
-import be.cytomine.exceptions.CytomineMethodNotYetImplementedException;
-import be.cytomine.exceptions.ObjectNotFoundException;
 import be.cytomine.repository.ontology.AlgoAnnotationTermRepository;
-import be.cytomine.repository.ontology.AnnotationTermRepository;
-import be.cytomine.repository.ontology.TermRepository;
-import be.cytomine.repository.ontology. AlgoAnnotationRepository;
 import be.cytomine.repository.security.SecUserRepository;
 import be.cytomine.service.CurrentUserService;
 import be.cytomine.service.ModelService;
-import be.cytomine.service.command.TransactionService;
 import be.cytomine.service.security.SecurityACLService;
 import be.cytomine.utils.CommandResponse;
 import be.cytomine.utils.JsonObject;
 import be.cytomine.utils.Task;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import javax.transaction.Transactional;
+import jakarta.transaction.Transactional;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 import static org.springframework.security.acls.domain.BasePermission.READ;
 
@@ -78,7 +67,6 @@ public class AlgoAnnotationTermService extends ModelService {
         return AlgoAnnotationTerm.class;
     }
 
-
     public List<AlgoAnnotationTerm> list(AnnotationDomain  annotationDomain) {
         securityACLService.check(annotationDomain.container(),READ);
         return algoAnnotationTermRepository.findAllByAnnotation(annotationDomain);
@@ -87,18 +75,6 @@ public class AlgoAnnotationTermService extends ModelService {
     public long count(Project project) {
         return algoAnnotationTermRepository.countByProject(project);
     }
-
-    //TODO:
-//    def count(Job job) {
-//        securityACLService.check(job.container(),READ)
-//        long total = 0
-//        List<UserJob> users = UserJob.findAllByJob(job)
-//        users.each {
-//            total = total + AlgoAnnotationTerm.countByUserJobAndDeletedIsNull(it)
-//        }
-//        total
-//    }
-
 
     public Optional<AlgoAnnotationTerm> find(AnnotationDomain annotation, Term term, UserJob userJob) {
         securityACLService.check(annotation.container(),READ);
@@ -136,8 +112,6 @@ public class AlgoAnnotationTermService extends ModelService {
         return executeCommand(new AddCommand(currentUser),null,jsonObject);
     }
 
-
-
     public CommandResponse addAlgoAnnotationTerm(AnnotationDomain annotation, Long idTerm, Long idUser, SecUser currentUser, Transaction transaction){
         JsonObject json = JsonObject.of(
                 "annotationClassName", annotation.getClass().getName(),
@@ -147,7 +121,6 @@ public class AlgoAnnotationTermService extends ModelService {
         );
         return executeCommand(new AddCommand(currentUser, transaction), null,json);
     }
-
 
     /**
      * Delete this domain
@@ -179,12 +152,10 @@ public class AlgoAnnotationTermService extends ModelService {
         response.getData().remove("algoannotation");
     }
 
-
     @Override
     public CytomineDomain createFromJSON(JsonObject json) {
         return new AlgoAnnotationTerm().buildDomainFromJson(json, getEntityManager());
     }
-
 
     @Override
     public List<String> getStringParamsI18n(CytomineDomain domain) {
@@ -197,11 +168,7 @@ public class AlgoAnnotationTermService extends ModelService {
         throw new RuntimeException("Update is not implemented for Annotation Term");
     }
 
-
-
     public void deleteDependencies(CytomineDomain domain, Transaction transaction, Task task) {
         return;
     }
-
-    // TODO: retrieval migration?
 }

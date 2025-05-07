@@ -20,8 +20,8 @@ import be.cytomine.BasicInstanceBuilder;
 import be.cytomine.CytomineCoreApplication;
 import be.cytomine.domain.ontology.Term;
 import be.cytomine.domain.security.User;
+import be.cytomine.dto.image.Point;
 import be.cytomine.repositorynosql.social.PersistentProjectConnectionRepository;
-import be.cytomine.service.dto.Point;
 import be.cytomine.service.image.ImageInstanceService;
 import be.cytomine.service.ontology.ReviewedAnnotationService;
 import be.cytomine.service.ontology.TermService;
@@ -36,7 +36,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.test.context.support.WithMockUser;
 
-import javax.transaction.Transactional;
+import jakarta.transaction.Transactional;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;

@@ -23,7 +23,6 @@ import be.cytomine.domain.image.CompanionFile;
 import be.cytomine.domain.image.UploadedFile;
 import be.cytomine.domain.security.SecUser;
 import be.cytomine.exceptions.AlreadyExistException;
-import be.cytomine.exceptions.InvalidRequestException;
 import be.cytomine.repository.image.CompanionFileRepository;
 import be.cytomine.service.CurrentUserService;
 import be.cytomine.service.ModelService;
@@ -32,21 +31,16 @@ import be.cytomine.service.security.SecurityACLService;
 import be.cytomine.utils.CommandResponse;
 import be.cytomine.utils.JsonObject;
 import be.cytomine.utils.Task;
-import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import javax.transaction.Transactional;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import jakarta.transaction.Transactional;
+
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
-import static be.cytomine.domain.image.UploadedFileStatus.ERROR_CONVERSION;
-import static be.cytomine.domain.image.UploadedFileStatus.UPLOADED;
 import static org.springframework.security.acls.domain.BasePermission.READ;
 import static org.springframework.security.acls.domain.BasePermission.WRITE;
 
@@ -158,7 +152,6 @@ public class CompanionFileService extends ModelService {
         }
     }
 
-
     @Override
     public List<Object> getStringParamsI18n(CytomineDomain domain) {
         return List.of(domain.getId(), ((CompanionFile)domain).getOriginalFilename());
@@ -167,51 +160,4 @@ public class CompanionFileService extends ModelService {
     public boolean hasProfile(AbstractImage image) {
         return !companionFileRepository.findAllByImage(image).stream().filter(x -> x.getType().equals("HDF5")).toList().isEmpty();
     }
-
-
-//    public CompanionFile addProfile(AbstractImage image) {
-//        if (hasProfile(image)) {
-//            throw new InvalidRequestException("Image " + image + " already has a profile");
-//        }
-//
-//        if (image.getDimensions().length() != 3) {
-//            throw new InvalidRequestException("Image "+ image +" is not a 3D image");
-//        }
-//
-//        String filename = "spectral.HDF5";
-//        String extension = "hdf5";
-//        String contentType = "HDF5";
-//
-//
-//        UploadedFile parent = image.getUploadedFile();
-//        Path parentPath = Paths.get(parent.getFilename()).getParent();
-//        String destinationPath = parentPath.resolve("processed/" + filename).toString();
-//        UploadedFile uf = new UploadedFile();
-//        uf.setParent(parent);
-//        uf.setImageServer(parent.getImageServer());
-//        uf.setContentType(contentType);
-//        uf.setStorage(parent.getStorage());
-//        uf.setUser(currentUserService.getCurrentUser());
-//        uf.setOriginalFilename(filename);
-//        uf.setExt(extension);
-//        uf.setSize(0L);
-//        uf.setStatus(UPLOADED.getCode());
-//        uf.setFilename(destinationPath);
-//        getEntityManager().persist(uf);
-//
-//        CompanionFile cf = new CompanionFile();
-//        cf.setUploadedFile(uf);
-//        cf.setImage(image);
-//        cf.setOriginalFilename(filename);
-//        cf.setType("HDF5");
-//        getEntityManager().persist(cf);
-//
-//        try {
-//            imageServerService.makeHDF5(image.getId(), cf.getId(), uf.getId());
-//        } catch (Exception e) {
-//            uf.setStatus(ERROR_CONVERSION.getCode());
-//            getEntityManager().persist(uf);
-//        }
-//        return cf;
-//    }
 }

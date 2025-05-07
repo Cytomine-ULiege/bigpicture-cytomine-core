@@ -27,8 +27,8 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
-import javax.mail.MessagingException;
-import javax.mail.internet.MimeMessage;
+import jakarta.mail.MessagingException;
+import jakarta.mail.internet.MimeMessage;
 import java.io.File;
 import java.util.*;
 
@@ -56,40 +56,17 @@ public class CytomineMailService {
         NotificationProperties notificationConfiguration = applicationProperties.getNotification();
         String defaultEmail = notificationConfiguration.getEmail();
 
+        // Force all e-mail to be issued from the one passed in the configuration to avoid such Exception:
+        // "SMTPSendFailedException: 550 5.7.60 SMTP; Client does not have permissions to send as this sender"
+        from = defaultEmail;
+
         if (StringUtils.isBlank(from)) {
-            from = defaultEmail;
+            from = NO_REPLY_EMAIL;
         }
 
         if (smtpHost.equals("disabled")) {
             return;
         }
-
-//        Properties props = new Properties();
-//        props.put("mail.smtp.host",notificationConfiguration.getSmtpHost());
-//        props.put("mail.smtp.port",notificationConfiguration.getSmtpHost());
-//        props.put("mail.transport.protocol", notificationConfiguration.getSmtpProtocol());
-//        props.put("mail.smtp.starttls.enable",notificationConfiguration.getSmtpStarttlsEnable());
-//        props.put("mail.smtp.starttls.required",notificationConfiguration.getSmtpStarttlsRequired());
-//        props.put("mail.smtp.ssl.protocols","TLSv1.2");
-//        props.put("mail.debug",notificationConfiguration.getSmtpDebug());
-
-//        String password = notificationConfiguration.getPassword();
-//        if(password!=null && !password.isEmpty()) {
-//            props.put("mail.smtp.auth", "true" );
-//        } else {
-//            props.put("mail.smtp.auth", "false" );
-//        }
-
-        //Create Mail Sender
-
-
-        //TODO: configure this un a BEAN (JavaMailSender)
-//        sender.setJavaMailProperties(props);
-//        sender.setUsername(defaultEmail);
-//        sender.setPassword(password);
-//        sender.setDefaultEncoding("UTF-8");
-
-
 
         MimeMessage mail = sender.createMimeMessage();
         MimeMessageHelper helper = new MimeMessageHelper(mail, true);
@@ -106,11 +83,6 @@ public class CytomineMailService {
             helper.addInline(entry.getKey(), entry.getValue());
         }
 
-
-//        for (Byte[] bytes : attachment) {
-//            helper.addInline(UUID.randomUUID().toString(), new ByteArrayResource(bytes)); // id?
-//        }
-
         log.debug("Sending email...");
         log.debug("from " + from);
         log.debug("to " + Arrays.toString(to));
@@ -119,7 +91,11 @@ public class CytomineMailService {
         try {
             sender.send(mail);
         } catch (Exception e) {
-            log.error("can't send email "+mail+" (MessagingException)");
+            log.error("can't send email ["+subject+"] (MessagingException) "+e.getMessage());
+            log.error("from " + from);
+            log.error("to " + Arrays.toString(to));
+            log.error("cc " + Arrays.toString(cc));
+            log.error("bcc " + Arrays.toString(bcc));
             throw new MiddlewareException(e.getMessage());
         }
     }

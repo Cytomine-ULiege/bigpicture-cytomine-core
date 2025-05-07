@@ -17,42 +17,27 @@ package be.cytomine.domain.social;
 */
 
 import be.cytomine.domain.CytomineSocialDomain;
-import be.cytomine.domain.image.ImageInstance;
-import be.cytomine.domain.image.SliceInstance;
-import be.cytomine.domain.project.Project;
-import be.cytomine.domain.security.SecUser;
-import be.cytomine.domain.security.User;
-import be.cytomine.service.dto.Point;
 import be.cytomine.utils.DateUtils;
 import be.cytomine.utils.JsonObject;
-import com.vividsolutions.jts.geom.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.Polygon;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.mongodb.core.geo.GeoJsonPolygon;
-import org.springframework.data.mongodb.core.index.CompoundIndex;
-import org.springframework.data.mongodb.core.index.GeoSpatialIndexed;
-import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
-import javax.persistence.*;
-import javax.validation.constraints.NotNull;
-import java.util.Arrays;
+import jakarta.persistence.*;
 import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
-//@Entity
 @Getter
 @Setter
 @Document
-//@CompoundIndex(def = "{'user' : 1, 'image': 1, 'slice': 1, created' : -1}")
-//@CompoundIndex(def = "{'location':'2d', 'image':1, 'slice':1}")
-//@Embeddable
 public class PersistentUserPosition extends CytomineSocialDomain {
-
 
    // TODO:
    // stateless true //don't store data in memory after read&co. These data don't need to be update.
@@ -69,23 +54,6 @@ public class PersistentUserPosition extends CytomineSocialDomain {
 
     @LastModifiedDate
     protected Date updated;
-
-//    @NotNull
-//    @ManyToOne(fetch = FetchType.LAZY)
-//    protected SecUser user;
-//
-//    @ManyToOne(fetch = FetchType.LAZY)
-//    @JoinColumn(nullable = true)
-//    @Indexed
-//    private ImageInstance image;
-//
-//    @ManyToOne(fetch = FetchType.LAZY)
-//    @JoinColumn(nullable = true)
-//    private SliceInstance slice;
-//
-//    @ManyToOne(fetch = FetchType.LAZY)
-//    @JoinColumn(nullable = true)
-//    private Project project;
 
     protected Long user;
 
@@ -142,14 +110,7 @@ public class PersistentUserPosition extends CytomineSocialDomain {
         returnArray.put("y", polygon.getCentroid().getY());
         return returnArray;
     }
-//    static Polygon getPolygonFromMongo(List locationList) {
-//        GeometryFactory fact = new GeometryFactory();
-//        locationList.add(locationList.get(0));
-//        List<Coordinate> coordinates = (List<Coordinate>) locationList.stream().map(x -> new Coordinate((Double)((List)x).get(0),(Double)((List)x).get(1))).collect(Collectors.toList());
-//        LinearRing linear = new GeometryFactory().createLinearRing(coordinates.toArray(new Coordinate[coordinates.size()]));
-//        Polygon poly = new Polygon(linear, null, fact);
-//        return poly;
-//    }
+
     public static Polygon getJtsPolygon(GeoJsonPolygon polygon) {
         List<Coordinate> coordinates = polygon.getPoints().stream().map(point -> new Coordinate(point.getX(), point.getY())).collect(Collectors.toList());
         if (coordinates.size() > 1) {

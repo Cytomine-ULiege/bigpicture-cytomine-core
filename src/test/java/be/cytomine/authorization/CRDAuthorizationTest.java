@@ -21,16 +21,12 @@ import org.springframework.security.acls.domain.BasePermission;
 import org.springframework.security.acls.model.Permission;
 import org.springframework.security.test.context.support.WithMockUser;
 
-import javax.transaction.Transactional;
+import jakarta.transaction.Transactional;
 import java.util.List;
 import java.util.Optional;
 
 @Transactional
 public abstract class CRDAuthorizationTest extends AbstractAuthorizationTest {
-
-    // *****************************
-    // GET
-    // *****************************
 
     @Test
     @WithMockUser(username = SUPERADMIN)
@@ -79,10 +75,6 @@ public abstract class CRDAuthorizationTest extends AbstractAuthorizationTest {
     public void guest_with_permission_get_domain() {
         expectOK (() -> when_i_get_domain());
     }
-
-    // *****************************
-    // ADD
-    // *****************************
 
     @Test
     @WithMockUser(username = SUPERADMIN)
@@ -182,10 +174,6 @@ public abstract class CRDAuthorizationTest extends AbstractAuthorizationTest {
             expectOK (() -> when_i_add_domain());
         }
     }
-
-    // *****************************
-    // DELETE
-    // *****************************
 
     @Test
     @WithMockUser(username = SUPERADMIN)

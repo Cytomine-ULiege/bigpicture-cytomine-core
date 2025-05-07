@@ -18,11 +18,9 @@ package be.cytomine.service.project;
 
 import java.util.*;
 import java.util.stream.Collectors;
-import javax.persistence.EntityManager;
-import javax.transaction.Transactional;
 
-import com.github.tomakehurst.wiremock.WireMockServer;
-import com.github.tomakehurst.wiremock.client.WireMock;
+import jakarta.persistence.EntityManager;
+import jakarta.transaction.Transactional;
 import org.apache.commons.lang3.time.DateUtils;
 import org.assertj.core.api.AssertionsForClassTypes;
 import org.junit.jupiter.api.*;
@@ -30,6 +28,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.domain.Page;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.test.context.support.WithMockUser;
 
 import be.cytomine.BasicInstanceBuilder;
@@ -45,6 +44,7 @@ import be.cytomine.domain.project.Project;
 import be.cytomine.domain.security.User;
 import be.cytomine.domain.social.PersistentProjectConnection;
 import be.cytomine.dto.NamedCytomineDomain;
+import be.cytomine.dto.ProjectBounds;
 import be.cytomine.exceptions.ConstraintException;
 import be.cytomine.exceptions.ForbiddenException;
 import be.cytomine.repositorynosql.social.PersistentProjectConnectionRepository;
@@ -369,15 +369,17 @@ public class ProjectServiceTests {
 
         assertThat(projectService.findCommandHistory(List.of(project1), builder.given_superadmin().getId(), 0L, 0L, true, DateUtils.addSeconds(new Date(), -10).getTime(), DateUtils.addSeconds(new Date(), +10).getTime()))
                 .hasSize(1);
+
+        assertThat(projectService.findCommandHistory(List.of(), builder.given_superadmin().getId(), 0L, 0L, true, null, null))
+                .hasSize(0);
+
     }
 
 
     @Test
     void list_user_project_with_annotation_filters() {
         Project project1 = builder.given_a_project();
-        //Project project2 = builder.given_a_project();
         builder.addUserToProject(project1, builder.given_superadmin().getUsername());
-        //builder.addUserToProject(project2, builder.given_superadmin().getUsername());
 
         project1.setCountImages(100L);
         project1.setCountAnnotations(200L);
@@ -1030,55 +1032,4 @@ public class ProjectServiceTests {
         PersistentProjectConnection connection = projectConnectionService.add(user, project, "xxx", "linux", "chrome", "123", created);
         return connection;
     }
-
-
-
-
-
-
-
-
-// FOR CONTROLLER TEST
-
-    //    //search
-//    void testGetSearch(){
-//
-//        searchParameters = [[operator : "in", field : "ontology_id", value:"null,"+p1.ontology.id]]
-//
-//        result = ProjectAPI.list(searchParameters, Infos.ADMINLOGIN, Infos.ADMINPASSWORD)
-//        assert 200 == result.code
-//        json = JSON.parse(result.data)
-//        assert json.collection instanceof JSONArray
-//
-
-
-
-    //        Project p4 = BasicInstanceBuilder.getProjectNotExist(true)
-//        p4.name = "T&test=5"
-//        p4.save(flush: true)
-//        p4 = p4.refresh()
-//
-//        searchParameters = [[operator : "like", field : "name", value:"T&test=5"]]
-//
-//        result = ProjectAPI.list(searchParameters, Infos.SUPERADMINLOGIN, Infos.SUPERADMINPASSWORD)
-//        assert 200 == result.code
-//        json = JSON.parse(result.data)
-//        assert json.collection instanceof JSONArray
-//        assert json.size == 1
-//        assert !ProjectAPI.containsInJSONList(p1.id,json)
-//        assert ProjectAPI.containsInJSONList(p4.id,json)
-
-
-
-//
-
-//
-//
-//        searchParameters = [[operator : "like", field : "name", value:"T';DELETE FROM amqp_queue_config;SELECT * FROM project WHERE name LIKE 'T%X';--"]]
-//
-//        result = ProjectAPI.list(searchParameters, Infos.SUPERADMINLOGIN, Infos.SUPERADMINPASSWORD)
-//        assert 200 == result.code // if multiple queries, error is returned. If 200 ==> OK
-//    }
-
-
 }

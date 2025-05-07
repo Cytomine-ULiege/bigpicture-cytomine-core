@@ -26,9 +26,8 @@ import be.cytomine.domain.project.ProjectDefaultLayer;
 import be.cytomine.domain.project.ProjectRepresentativeUser;
 import be.cytomine.domain.security.*;
 import be.cytomine.domain.social.LastConnection;
-import be.cytomine.domain.social.PersistentProjectConnection;
-import be.cytomine.dto.AuthInformation;
 import be.cytomine.dto.NamedCytomineDomain;
+import be.cytomine.dto.auth.AuthInformation;
 import be.cytomine.exceptions.*;
 import be.cytomine.repository.command.CommandHistoryRepository;
 import be.cytomine.repository.command.CommandRepository;
@@ -51,7 +50,6 @@ import be.cytomine.service.CurrentRoleService;
 import be.cytomine.service.CurrentUserService;
 import be.cytomine.service.ModelService;
 import be.cytomine.service.PermissionService;
-import be.cytomine.service.dto.JobLayerDTO;
 import be.cytomine.service.image.ImageInstanceService;
 import be.cytomine.service.image.server.StorageService;
 import be.cytomine.service.ontology.*;
@@ -73,10 +71,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.ReflectionUtils;
 
-import javax.persistence.Query;
-import javax.persistence.Tuple;
-import javax.persistence.TupleElement;
-import java.math.BigInteger;
+import jakarta.persistence.Query;
+import jakarta.persistence.Tuple;
+import jakarta.persistence.TupleElement;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -331,6 +328,7 @@ public class SecUserService extends ModelService {
             groupBy = "GROUP BY u.id ";
         }
 
+
         if (sortColumn.equals("role")) {
             sort = "ORDER BY " + sortColumn + " " + sortDirection + ", u.id ASC ";
         } else if (sortColumn.equals("fullName")) {
@@ -349,7 +347,6 @@ public class SecUserService extends ModelService {
         }
 
         Query query = getEntityManager().createNativeQuery(request, Tuple.class);
-//        Map<String, Object> mapParams = sqlSearchConditions.getSqlParameters();
         for (Map.Entry<String, Object> entry : mapParams.entrySet()) {
             query.setParameter(entry.getKey(), entry.getValue());
         }
@@ -359,18 +356,9 @@ public class SecUserService extends ModelService {
             JsonObject result = new JsonObject();
             for (TupleElement<?> element : rowResult.getElements()) {
                 Object value = rowResult.get(element.getAlias());
-                if (value instanceof BigInteger) {
-                    value = ((BigInteger) value).longValue();
-                }
                 String alias = SQLUtils.toCamelCase(element.getAlias());
                 result.put(alias, value);
             }
-
-            // TODO?????
-            // I mock methods and fields to pass through getDataFromDomain of SecUser
-//            map["class"] = User.class
-//            map.getMetaClass().algo = { return false }
-//            map["language"] = User.Language.valueOf(map["language"])
 
             result.put("language", Language.valueOf(result.getJSONAttrStr("language")));
             JsonObject object = User.getDataFromDomain(new User().buildDomainFromJson(result, getEntityManager()));
@@ -401,7 +389,7 @@ public class SecUserService extends ModelService {
         for (Map.Entry<String, Object> entry : mapParams.entrySet()) {
             query.setParameter(entry.getKey(), entry.getValue());
         }
-        long count = ((BigInteger) query.getResultList().get(0)).longValue();
+        long count = (Long) query.getResultList().get(0);
 
         Page<Map<String, Object>> page = PageUtils.buildPageFromPageResults(results, max, offset, count);
         return page;
@@ -517,8 +505,8 @@ public class SecUserService extends ModelService {
         String from = "from ProjectRepresentativeUser r right outer join r.user secUser ON (r.project.id = " + project.getId() + "), " +
                 "AclObjectIdentity as aclObjectId, AclEntry as aclEntry, AclSid as aclSid ";
         String where = "where aclObjectId.objectId = " + project.getId() + " " +
-                "and aclEntry.aclObjectIdentity = aclObjectId.id " +
-                "and aclEntry.sid = aclSid.id " +
+                "and aclEntry.aclObjectIdentity = aclObjectId " +
+                "and aclEntry.sid = aclSid " +
                 "and aclSid.sid = secUser.username " +
                 "and secUser.class = 'be.cytomine.domain.security.User' ";
         String groupBy = "";
@@ -550,7 +538,7 @@ public class SecUserService extends ModelService {
                 "     WHEN aclEntry.mask = 16 THEN 'manager'\n" +
                 "     ELSE 'contributor'\n" +
                 " END) as role ";
-        groupBy = "GROUP BY secUser.id ";
+        groupBy = "GROUP BY secUser.id , secUser.accountExpired , secUser.accountLocked, secUser.created, secUser.enabled, secUser.origin, secUser.password, secUser.passwordExpired, secUser.privateKey, secUser.publicKey, secUser.updated, secUser.username, secUser.version,secUser.email,secUser.firstname,secUser.isDeveloper,secUser.language,secUser.lastname,secUser.creator";
 
         if (sortColumn.equals("projectRole")) {
             sortColumn = "role";
@@ -562,14 +550,6 @@ public class SecUserService extends ModelService {
         order = " order by " + sortColumn + " " + sortDirection;
 
         String request = select + from + where + groupBy + having + order;
-
-//        if (max > 0) {
-//            request += " LIMIT " + max;
-//        }
-//        if (offset > 0) {
-//            request += " OFFSET " + offset;
-//        }
-
 
         Query query = getEntityManager().createQuery(request, Object[].class);
 
@@ -588,22 +568,6 @@ public class SecUserService extends ModelService {
             results.add(jsonObject);
         }
 
-
-//        List<Map<String, Object>> results = new ArrayList<>();
-//        for (Tuple rowResult : resultList) {
-//            JsonObject result = new JsonObject();
-//            for (TupleElement<?> element : rowResult.getElements()) {
-//                Object value = rowResult.get(element.getAlias());
-//                if (value instanceof BigInteger) {
-//                    value = ((BigInteger)value).longValue();
-//                }
-//                String alias = SQLUtils.toCamelCase(element.getAlias());
-//                result.put(alias, value);
-//            }
-//            JsonObject object = Project.getDataFromDomain(new User().buildDomainFromJson(result, getEntityManager()));
-//            object.put("role", result.get("role"));
-//            results.add(object);
-//        }
         request = "SELECT COUNT(DISTINCT secUser) " + from + where;
         query = getEntityManager().createQuery(request);
         long count = ((Long) query.getResultList().get(0));
@@ -641,16 +605,6 @@ public class SecUserService extends ModelService {
         List<SecUser> users = secUserRepository.findAllUsersByProjectId(project.getId());
 
         if (showUserJob) {
-            //TODO:: should be optim (see method head comment)
-//            List<Job> allJobs = Job.findAllByProject(project, [sort: 'created', order: 'desc'])
-//
-//            allJobs.each { job ->
-//                   public void userJob = UserJob.findByJob(job);
-//                if (userJob) {
-//                    userJob.username = job.software.name + " " + job.created
-//                    users << userJob
-//                }
-//            }
             throw new RuntimeException("Not yet implemented (showUserJob)");
         }
         return users;
@@ -675,64 +629,6 @@ public class SecUserService extends ModelService {
         securityACLService.check(storage, READ);
         return secUserRepository.findAllUsersByStorageId(storage.getId());
     }
-
-    //TODO: software migration
-//    /**
-//     * Get all allowed user id for a specific domain instance
-//     * E.g; get all user id for a project
-//     */
-//    List<Long> getAllowedUserIdList(CytomineDomain domain) {
-//        String request = "SELECT DISTINCT sec_user.id \n" +
-//                " FROM acl_object_identity, acl_entry,acl_sid, sec_user \n" +
-//                " WHERE acl_object_identity.object_id_identity = $domain.id\n" +
-//                " AND acl_entry.acl_object_identity=acl_object_identity.id\n" +
-//                " AND acl_entry.sid = acl_sid.id " +
-//                " AND acl_sid.sid = sec_user.username " +
-//                " AND sec_user.class = 'be.cytomine.domain.security.User' "
-//       public void data = []
-//       public void sql = new Sql(dataSource)
-//        sql.eachRow(request) {
-//            data << it[0]
-//        }
-//        try {
-//            sql.close()
-//        }catch (Exception e) {}
-//        return data
-//    }
-//
-//
-//    privatepublic void getUserJobImage(ImageInstance image) {
-//
-//        String request = "SELECT DISTINCT u.id as id, u.username as username, " +
-//                "s.name as softwareName, s.software_version as softwareVersion, " +
-//                "j.created as created, u.job_id as job " +
-//                "FROM annotation_index ai " +
-//                "RIGHT JOIN slice_instance si ON ai.slice_id = si.id " +
-//                "RIGHT JOIN sec_user u ON ai.user_id = u.id " +
-//                "RIGHT JOIN job j ON j.id = u.job_id " +
-//                "RIGHT JOIN software_project sp ON sp.software_id = j.software_id " +
-//                "RIGHT JOIN software s ON s.id = sp.software_id " +
-//                "WHERE si.image_id = ${image.id} " +
-//                "AND sp.project_id = ${image.project.id} " +
-//                "ORDER BY j.created"
-//       public void data = []
-//       public void sql = new Sql(dataSource)
-//        sql.eachRow(request) {
-//           public void item = [:]
-//            item.id = it.id
-//            item.username = it.username
-//            item.softwareName = (it.softwareVersion?.trim()) ? "${it.softwareName} (${it.softwareVersion})" : it.softwareName
-//
-//            item.created = it.created
-//            item.algo = true
-//            item.job = it.job
-//            data << item
-//        }
-//        try {
-//            sql.close()
-//        }catch (Exception e) {}
-//        data
-//    }
 
     public CommandResponse lock(SecUser user) {
         SecUser currentUser = currentUserService.getCurrentUser();
@@ -759,8 +655,6 @@ public class SecUserService extends ModelService {
         List<SecUser> data = new ArrayList<>();
         data.addAll(listUsers(project));
         //TODO: could be optim!!!
-        // TODO: after software package
-        //data.addAll(UserJob.findAllByJobInList(Job.findAllByProject(project)))
         return data;
     }
     /**
@@ -794,9 +688,6 @@ public class SecUserService extends ModelService {
             layersFormatted.add(currentUser.toJsonObject());
         }
 
-        if (image != null) {
-            layersFormatted.addAll(secUserRepository.findAllUserJob(image.getId(), image.getProject().getId()).stream().map(JobLayerDTO::getDataFromDomain).collect(Collectors.toList()));
-        }
         return layersFormatted;
     }
 
@@ -1008,10 +899,6 @@ public class SecUserService extends ModelService {
     public CommandResponse delete(CytomineDomain domain, Transaction transaction, Task task, boolean printMessage) {
         SecUser currentUser = currentUserService.getCurrentUser();
         if (((SecUser) domain).isAlgo()) {
-//            Job job = ((UserJob)domain).job
-//            securityACLService.check(job?.container(),READ)
-//            securityACLService.checkFullOrRestrictedForOwner(job, ((UserJob)domain).user)
-            // TODO: software package
             throw new CytomineMethodNotYetImplementedException("software package not yet implemented");
         } else {
             securityACLService.checkAdmin(currentUser);
@@ -1046,13 +933,6 @@ public class SecUserService extends ModelService {
         if (userWithSameUsername.isPresent() && !Objects.equals(userWithSameUsername.get().getId(), user.getId())) {
             throw new AlreadyExistException("User " + user.getUsername() + " already exist!");
         }
-        // grails version allow this, should we allow users with same email?
-//        if (domain instanceof User) {
-//            Optional<User> userWithSameEmail = userRepository.findByEmailLikeIgnoreCase(((User)user).getEmail());
-//            if (userWithSameEmail.isPresent() && !Objects.equals(userWithSameEmail.get().getId(), user.getId())) {
-//                throw new AlreadyExistException("User with email " + ((User)user).getEmail() + " already exist!");
-//            }
-//        }
     }
 
     public void changeUserPassword(User user, String newPassword) {
@@ -1226,23 +1106,18 @@ public class SecUserService extends ModelService {
         deleteDependentAnnotationTerm((SecUser) domain, transaction, task);
         deleteDependentImageInstance((SecUser) domain, transaction, task);
         deleteDependentOntology((SecUser) domain, transaction, task);
-        //deleteDependentForgotPasswordToken((SecUser) domain, transaction, task);
         deleteDependentReviewedAnnotation((SecUser) domain, transaction, task);
         deleteDependentSecUserSecRole((SecUser) domain, transaction, task);
         deleteDependentAbstractImage((SecUser) domain, transaction, task);
         deleteDependentUserAnnotation((SecUser) domain, transaction, task);
-        //deleteDependentUserJob((SecUser) domain, transaction, task);
         deleteDependentUploadedFile((SecUser) domain, transaction, task);
         deleteDependentStorage((SecUser) domain, transaction, task);
-        //deleteDependentSharedAnnotation((SecUser) domain, transaction, task);
-        //deleteDependentHasManySharedAnnotation((SecUser) domain, transaction, task);
         deleteDependentAnnotationIndex((SecUser) domain, transaction, task);
         deleteDependentNestedImageInstance((SecUser) domain, transaction, task);
         deleteDependentProjectDefaultLayer((SecUser) domain, transaction, task);
         deleteDependentProjectRepresentativeUser((SecUser) domain, transaction, task);
         deleteDependentMessageBrokerServer((SecUser) domain, transaction, task);
     }
-
 
     public void deleteDependentAlgoAnnotation(SecUser user, Transaction transaction, Task task) {
         if (user instanceof UserJob) {
@@ -1287,10 +1162,6 @@ public class SecUserService extends ModelService {
 
     public void deleteDependentForgotPasswordToken(SecUser secUser, Transaction transaction, Task task) {
         if (secUser instanceof User) {
-            User user = (User) secUser;
-//              ForgotPasswordToken.findAllByUser(user).each {
-//                  it.delete()
-//              }
             //TODO
             throw new CytomineMethodNotYetImplementedException("todo");
         }
@@ -1324,9 +1195,6 @@ public class SecUserService extends ModelService {
 
     public void deleteDependentUserJob(SecUser user, Transaction transaction, Task task) {
         if (user instanceof User) {
-//            UserJob.findAllByUser((User)user).each {
-//                delete(it,transaction,null,false)
-//            }
             throw new CytomineMethodNotYetImplementedException("todo");
         }
     }
@@ -1352,9 +1220,6 @@ public class SecUserService extends ModelService {
     public void deleteDependentSharedAnnotation(SecUser user, Transaction transaction, Task task) {
         if (user instanceof User) {
             //TODO:: implement cascade deleteting/update for shared annotation
-//            if(SharedAnnotation.findAllBySender(user)) {
-//                throw new ConstraintException("This user has send/receive annotation comments. We cannot delete it! ")
-//            }
             throw new CytomineMethodNotYetImplementedException("todo");
         }
     }
@@ -1362,16 +1227,6 @@ public class SecUserService extends ModelService {
     public void deleteDependentHasManySharedAnnotation(SecUser user, Transaction transaction, Task task) {
         if (user instanceof User) {
             //TODO:: implement cascade deleteting/update for shared annotation
-//           public void criteria = SharedAnnotation.createCriteria()
-//           public void results = criteria.list {
-//                receivers {
-//                    inList("id", user.id)
-//                }
-//            }
-//
-//            if(!results.isEmpty()) {
-//                throw new ConstraintException("This user has send/receive annotation comments. We cannot delete it! ")
-//            }
             throw new CytomineMethodNotYetImplementedException("todo");
         }
     }
@@ -1403,7 +1258,4 @@ public class SecUserService extends ModelService {
     public void deleteDependentMessageBrokerServer(SecUser user, Transaction transaction, Task task) {
 
     }
-
-
-
 }

@@ -19,26 +19,20 @@ package be.cytomine.domain.security;
 import be.cytomine.domain.CytomineDomain;
 import be.cytomine.utils.JsonObject;
 import be.cytomine.utils.SecurityUtils;
-import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 
-import javax.persistence.*;
-import javax.validation.constraints.Email;
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Size;
+import jakarta.persistence.*;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 @Entity
 @Getter
 @Setter
 @DiscriminatorValue("be.cytomine.domain.security.User")
 public class User extends SecUser {
-
-//    @Id
-//    @GeneratedValue(strategy = GenerationType.AUTO, generator = "myGen")
-//    @SequenceGenerator(name = "myGen", sequenceName = "hibernate_sequence", allocationSize=1)
-//    protected Long id;
 
     @NotNull
     @NotBlank
@@ -102,11 +96,6 @@ public class User extends SecUser {
         return false;
     }
 
-//    public static CytomineDomain buildDomainFromJson(JsonObject json) {
-//        return buildDomainFromJson(json, new User());
-//    }
-//
-//    public static CytomineDomain buildDomainFromJson(JsonObject json, CytomineDomain domain) {
     public CytomineDomain buildDomainFromJson(JsonObject json, EntityManager entityManager) {
         User user = (User)this;
         user.id = json.getJSONAttrLong("id",null);
@@ -157,13 +146,6 @@ public class User extends SecUser {
         returnArray.put("user", user.creator);
         return returnArray;
     }
-
-
-//    public static JsonObject getDataFromDomainWithPersonnalData(CytomineDomain domain) {
-//        JsonObject json = User.getDataFromDomain(domain);
-//
-//        return json;
-//    }
 
     @Override
     public String toJSON() {

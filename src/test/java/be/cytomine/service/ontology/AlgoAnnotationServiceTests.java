@@ -21,20 +21,18 @@ import be.cytomine.CytomineCoreApplication;
 import be.cytomine.TestUtils;
 import be.cytomine.domain.image.SliceInstance;
 import be.cytomine.domain.ontology.*;
-import be.cytomine.domain.security.User;
 import be.cytomine.domain.security.UserJob;
-import be.cytomine.dto.AnnotationLight;
+import be.cytomine.dto.annotation.AnnotationResult;
 import be.cytomine.exceptions.ObjectNotFoundException;
 import be.cytomine.exceptions.WrongArgumentException;
 import be.cytomine.repository.AlgoAnnotationListing;
 import be.cytomine.repository.ontology.AlgoAnnotationRepository;
 import be.cytomine.service.CommandService;
 import be.cytomine.service.command.TransactionService;
-import be.cytomine.service.dto.AnnotationResult;
 import be.cytomine.utils.CommandResponse;
 import be.cytomine.utils.JsonObject;
-import com.vividsolutions.jts.io.ParseException;
-import com.vividsolutions.jts.io.WKTReader;
+import org.locationtech.jts.io.ParseException;
+import org.locationtech.jts.io.WKTReader;
 import org.apache.commons.lang3.time.DateUtils;
 import org.assertj.core.api.AssertionsForClassTypes;
 import org.junit.jupiter.api.Assertions;
@@ -45,8 +43,8 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.test.context.support.WithMockUser;
 
-import javax.persistence.EntityManager;
-import javax.transaction.Transactional;
+import jakarta.persistence.EntityManager;
+import jakarta.transaction.Transactional;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -101,13 +99,6 @@ public class AlgoAnnotationServiceTests {
     @Test
     void find_unexisting_algoAnnotation_return_empty() {
         assertThat(algoAnnotationService.find(0L)).isEmpty();
-    }
-
-
-    @Disabled("wait report package")
-    @Test
-    void download_algo_annotation_document() {
-
     }
 
     @Test

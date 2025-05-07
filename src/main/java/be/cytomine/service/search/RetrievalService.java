@@ -31,13 +31,13 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import be.cytomine.config.properties.ApplicationProperties;
+import be.cytomine.domain.CropParameter;
 import be.cytomine.domain.CytomineDomain;
 import be.cytomine.domain.ontology.AnnotationDomain;
 import be.cytomine.domain.search.RetrievalServer;
 import be.cytomine.dto.PimsResponse;
 import be.cytomine.dto.search.SearchResponse;
 import be.cytomine.service.ModelService;
-import be.cytomine.service.dto.CropParameter;
 import be.cytomine.service.middleware.ImageServerService;
 import be.cytomine.utils.JsonObject;
 

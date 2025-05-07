@@ -22,10 +22,10 @@ import be.cytomine.utils.JsonObject;
 import lombok.Getter;
 import lombok.Setter;
 
-import javax.persistence.Entity;
-import javax.persistence.EntityManager;
-import javax.persistence.FetchType;
-import javax.persistence.ManyToOne;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.ManyToOne;
 import java.io.Serializable;
 import java.util.Optional;
 
@@ -61,7 +61,6 @@ public class SliceInstance extends CytomineDomain implements Serializable {
         SliceInstance sliceInstance = (SliceInstance) domain;
         returnArray.put("uploadedFile", Optional.ofNullable(sliceInstance.baseSlice).map(AbstractSlice::getUploadedFileId).orElse(null));
 
-        returnArray.put("imageServerUrl", sliceInstance.getImageServerUrl());
         returnArray.put("project", Optional.ofNullable(sliceInstance.project).map(CytomineDomain::getId).orElse(null));
         returnArray.put("baseSlice", Optional.ofNullable(sliceInstance.baseSlice).map(CytomineDomain::getId).orElse(null));
         returnArray.put("image", Optional.ofNullable(sliceInstance.image).map(CytomineDomain::getId).orElse(null));
@@ -76,16 +75,14 @@ public class SliceInstance extends CytomineDomain implements Serializable {
         returnArray.put("channelName", Optional.ofNullable(sliceInstance.baseSlice).map(AbstractSlice::getChannelName).orElse(null));
         returnArray.put("channelColor", Optional.ofNullable(sliceInstance.baseSlice).map(AbstractSlice::getChannelColor).orElse(null));
 
+        returnArray.put("zName", Optional.ofNullable(sliceInstance.baseSlice).map(AbstractSlice::getZName).orElse(null));
+
         return returnArray;
     }
 
 
     public String getPath() {
         return Optional.ofNullable(this.baseSlice).map(AbstractSlice::getPath).orElse(null);
-    }
-
-    public String getImageServerUrl() {
-        return Optional.ofNullable(this.baseSlice).map(AbstractSlice::getImageServerUrl).orElse(null);
     }
 
     public String getMimeType(){

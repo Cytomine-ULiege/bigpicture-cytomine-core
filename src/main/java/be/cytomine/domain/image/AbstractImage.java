@@ -24,8 +24,8 @@ import be.cytomine.utils.JsonObject;
 import lombok.Getter;
 import lombok.Setter;
 
-import javax.persistence.*;
-import javax.validation.constraints.Min;
+import jakarta.persistence.*;
+import jakarta.validation.constraints.Min;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -181,14 +181,6 @@ public class AbstractImage extends CytomineDomain {
 
     public String getPath() {
         return this.getUploadedFile()!=null ? this.getUploadedFile().getPath() : null;
-    }
-
-    public String getImageServerUrl() {
-        return this.getUploadedFile()!=null ? this.getUploadedFile().getImageServerUrl() : null;
-    }
-
-    public String getImageServerInternalUrl() {
-        return this.getUploadedFile()!=null ? this.getUploadedFile().getImageServerInternalUrl() : null;
     }
 
     public Integer getZoomLevels() {

@@ -22,10 +22,10 @@ import be.cytomine.utils.JsonObject;
 import lombok.Getter;
 import lombok.Setter;
 
-import javax.persistence.*;
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Null;
+import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Null;
 import java.util.Optional;
 
 @Entity
@@ -69,7 +69,6 @@ public class ImageFilterProject extends CytomineDomain {
         returnArray.put("imageFilter", Optional.ofNullable(processingServer.getImageFilter()).map(CytomineDomain::getId).orElse(null));
         returnArray.put("project", Optional.ofNullable(processingServer.getProject()).map(CytomineDomain::getId).orElse(null));
 
-        returnArray.put("imagingServer", Optional.ofNullable(processingServer.getImageFilter()).map(ImageFilter::getImagingServer).map(ImagingServer::getUrl).orElse(null));
         returnArray.put("baseUrl", Optional.ofNullable(processingServer.getImageFilter()).map(ImageFilter::getBaseUrl).orElse(null));
         returnArray.put("name", Optional.ofNullable(processingServer.getImageFilter()).map(ImageFilter::getName).orElse(null));
         returnArray.put("method", Optional.ofNullable(processingServer.getImageFilter()).map(ImageFilter::getMethod).orElse(null));

@@ -19,18 +19,18 @@ package be.cytomine.domain.ontology;
 import be.cytomine.domain.CytomineDomain;
 import be.cytomine.domain.image.ImageInstance;
 import be.cytomine.domain.image.SliceInstance;
-import be.cytomine.domain.project.Project;
 import be.cytomine.domain.security.SecUser;
 import be.cytomine.domain.security.User;
 import be.cytomine.exceptions.WrongArgumentException;
 import be.cytomine.service.UrlApi;
 import be.cytomine.utils.JsonObject;
-import com.vividsolutions.jts.geom.Geometry;
-import com.vividsolutions.jts.io.WKTReader;
+import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.io.ParseException;
+import org.locationtech.jts.io.WKTReader;
 import lombok.Getter;
 import lombok.Setter;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
@@ -62,6 +62,14 @@ public class UserAnnotation extends AnnotationDomain implements Serializable {
             inverseJoinColumns = { @JoinColumn(name = "track_id") }
     )
     private List<Track> tracks = new ArrayList<>();
+
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "annotation_link",
+            joinColumns = { @JoinColumn(name = "annotation_ident") },
+            inverseJoinColumns = { @JoinColumn(name = "group_id") }
+    )
+    private List<AnnotationLink> links = new ArrayList<>();
 
     @PrePersist
     public void beforeCreate() {
@@ -109,6 +117,14 @@ public class UserAnnotation extends AnnotationDomain implements Serializable {
 
     }
 
+    public List<Long> annotationLinksId() {
+        return links.stream().map(CytomineDomain::getId).distinct().collect(Collectors.toList());
+    }
+
+    public List<Long> linkedAnnotations() {
+        return links.stream().map(AnnotationLink::getAnnotationIdent).distinct().collect(Collectors.toList());
+    }
+
     /**
      * Get all terms for automatic review
      * If review is done "for all" (without manual user control), we add these term to the new review annotation
@@ -141,32 +157,6 @@ public class UserAnnotation extends AnnotationDomain implements Serializable {
     public boolean isRoiAnnotation() {
         return false;
     }
-
-
-// TODO: seems to be not used
-//    /**
-//     * Get a list of each term link with annotation
-//     * For each term, add all users that add this term
-//     * [{id: x, term: y, user: [a,b,c]}, {...]
-//     */
-//    def usersIdByTerm() {
-//        def results = []
-//        if (this.version != null) {
-//            AnnotationTerm.findAllByUserAnnotationAndDeletedIsNull(this).each { annotationTerm ->
-//                    def map = [:]
-//                map.id = annotationTerm.id
-//                map.term = annotationTerm.term?.id
-//                map.user = [annotationTerm.user?.id]
-//                def item = results.find { it.term == annotationTerm.term?.id }
-//                if (!item) {
-//                    results << map
-//                } else {
-//                    item.user.add(annotationTerm.user.id)
-//                }
-//            }
-//        }
-//        results
-//    }
 
     public CytomineDomain buildDomainFromJson(JsonObject json, EntityManager entityManager) {
         UserAnnotation annotation = this;
@@ -204,7 +194,7 @@ public class UserAnnotation extends AnnotationDomain implements Serializable {
             try {
                 annotation.location = new WKTReader().read(json.getJSONAttrStr("location"));
             }
-            catch (com.vividsolutions.jts.io.ParseException ex) {
+            catch (ParseException ex) {
                 throw new WrongArgumentException(ex.toString());
             }
         }
@@ -233,7 +223,6 @@ public class UserAnnotation extends AnnotationDomain implements Serializable {
         returnArray.put("url", UrlApi.getUserAnnotationCropWithAnnotationId(annotation.getId(), "png"));
         returnArray.put("imageURL", UrlApi.getAnnotationURL(annotation.getImage().getProject().getId(), annotation.getImage().getId(), annotation.getId()));
         returnArray.put("reviewed", annotation.hasReviewedAnnotation());
-        // TODO returnArray.put("track", domain?.tracksId());
 
         return returnArray;
     }
@@ -247,6 +236,4 @@ public class UserAnnotation extends AnnotationDomain implements Serializable {
     public User userDomainCreator() {
         return user;
     }
-
-
 }

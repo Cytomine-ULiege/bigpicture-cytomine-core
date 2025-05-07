@@ -16,7 +16,6 @@ package be.cytomine.service;
 * limitations under the License.
 */
 
-import be.cytomine.domain.ValidationError;
 import be.cytomine.domain.command.*;
 import be.cytomine.domain.security.SecUser;
 import be.cytomine.exceptions.CytomineException;
@@ -32,8 +31,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Service;
 
-import javax.persistence.EntityManager;
-import javax.transaction.Transactional;
+import jakarta.persistence.EntityManager;
+import jakarta.transaction.Transactional;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -67,31 +66,6 @@ public class CommandService {
     static final int SUCCESS_ADD_CODE = 200;
     static final int SUCCESS_EDIT_CODE = 200;
     static final int SUCCESS_DELETE_CODE = 200;
-
-
-//    /**
-//     * Execute an 'addcommand' c with json data
-//     * Store command in undo stack if necessary and in command history
-//     */
-//    CommandResponse processCommand(AddCommand c) throws CytomineException {
-//        return processCommand(c, SUCCESS_ADD_CODE);
-//    }
-//
-//    /**
-//     * Execute an 'editcommand' c with json data
-//     * Store command in undo stack if necessary and in command history
-//     */
-//    CommandResponse processCommand(EditCommand c) throws CytomineException {
-//        return processCommand(c, SUCCESS_EDIT_CODE);
-//    }
-//
-//    /**
-//     * Execute a 'deletecommand' c with json data
-//     * Store command in undo stack if necessary and in command history
-//     */
-//    CommandResponse processCommand(DeleteCommand c) throws CytomineException {
-//        return processCommand(c, SUCCESS_DELETE_CODE);
-//    }
 
     CommandResponse processCommand(Command c, ModelService service) throws CytomineException {
         if (c instanceof AddCommand) {

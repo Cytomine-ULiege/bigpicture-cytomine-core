@@ -21,18 +21,16 @@ import be.cytomine.utils.JsonObject;
 import lombok.Getter;
 import lombok.Setter;
 
-import javax.persistence.Entity;
-import javax.persistence.EntityManager;
-import javax.persistence.FetchType;
-import javax.persistence.ManyToOne;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.ManyToOne;
 import java.util.Optional;
 
 @Entity
 @Getter
 @Setter
 public class AbstractSlice extends CytomineDomain {
-
-    //TODO:      sort([time: 'asc', zStack: 'asc', channel: 'asc'])
 
     @ManyToOne
     private AbstractImage image;
@@ -53,6 +51,8 @@ public class AbstractSlice extends CytomineDomain {
 
     private String channelColor;
 
+    private String zName;
+
     public CytomineDomain buildDomainFromJson(JsonObject json, EntityManager entityManager) {
         AbstractSlice abstractSlice = this;
         abstractSlice.id = json.getJSONAttrLong("id",null);
@@ -63,13 +63,14 @@ public class AbstractSlice extends CytomineDomain {
         abstractSlice.image = (AbstractImage) json.getJSONAttrDomain(entityManager, "image", new AbstractImage(), true);
         abstractSlice.mime = (Mime) json.getJSONAttrDomain(entityManager, "mime", new Mime(), "mimeType", "String", false);
 
-        
         abstractSlice.channel = json.getJSONAttrInteger("channel", 0);
         abstractSlice.zStack = json.getJSONAttrInteger("zStack", 0);
         abstractSlice.time = json.getJSONAttrInteger("time", 0);
 
         abstractSlice.channelName = json.getJSONAttrStr("channelName", false);
         abstractSlice.channelColor = json.getJSONAttrStr("channelColor", false);
+
+        abstractSlice.zName = json.getJSONAttrStr("zName", false);
 
         return abstractSlice;
     }
@@ -82,8 +83,6 @@ public class AbstractSlice extends CytomineDomain {
         returnArray.put("image", abstractSlice.getImageId());
         returnArray.put("mime", abstractSlice.getMimeType());
 
-        returnArray.put("imageServerUrl", abstractSlice.getImageServerUrl());
-
         returnArray.put("channel", abstractSlice.getChannel());
         returnArray.put("zStack", abstractSlice.getZStack());
         returnArray.put("time", abstractSlice.getTime());
@@ -91,6 +90,8 @@ public class AbstractSlice extends CytomineDomain {
 
         returnArray.put("channelName", abstractSlice.getChannelName());
         returnArray.put("channelColor", abstractSlice.getChannelColor());
+
+        returnArray.put("zName", abstractSlice.getZName());
 
         return returnArray;
     }
@@ -110,15 +111,6 @@ public class AbstractSlice extends CytomineDomain {
     public String getPath() {
         UploadedFile referenceUploadedFile = this.getReferenceUploadedFile();
         return referenceUploadedFile!=null ? referenceUploadedFile.getPath() : null;
-    }
-    public String getImageServerUrl() {
-        UploadedFile referenceUploadedFile = this.getReferenceUploadedFile();
-        return referenceUploadedFile!=null ? referenceUploadedFile.getImageServerUrl() : null;
-    }
-
-    public String getImageServerInternalUrl() {
-        UploadedFile referenceUploadedFile = this.getReferenceUploadedFile();
-        return referenceUploadedFile!=null ? referenceUploadedFile.getImageServerInternalUrl() : null;
     }
 
     public Integer getRank() {

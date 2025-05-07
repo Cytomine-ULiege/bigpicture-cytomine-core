@@ -21,12 +21,10 @@ import be.cytomine.utils.DateUtils;
 import be.cytomine.utils.JsonObject;
 import lombok.Getter;
 import lombok.Setter;
-import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
-import javax.persistence.*;
-import javax.validation.constraints.NotNull;
+import jakarta.persistence.*;
 import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -39,12 +37,7 @@ import java.util.Map;
 @Setter
 @Document
 @Entity
-//@CompoundIndex(def = "{'user' : 1, 'image' : 1, 'created': -1}")
 public class PersistentImageConsultation extends CytomineSocialDomain implements Cloneable {
-
-        // TODO:
-//    version false
-//    stateless true //don't store data in memory after read&co. These data don't need to be update.
 
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)

@@ -18,11 +18,11 @@ package be.cytomine.service.security;
 
 import java.util.*;
 import java.util.stream.Collectors;
-import javax.persistence.EntityManager;
-import javax.transaction.Transactional;
 
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.WireMock;
+import jakarta.persistence.EntityManager;
+import jakarta.transaction.Transactional;
 import org.apache.commons.lang3.time.DateUtils;
 import org.assertj.core.api.AssertionsForClassTypes;
 import org.junit.jupiter.api.*;
@@ -50,13 +50,13 @@ import be.cytomine.domain.project.ProjectRepresentativeUser;
 import be.cytomine.domain.security.SecUser;
 import be.cytomine.domain.security.User;
 import be.cytomine.domain.social.*;
-import be.cytomine.dto.AuthInformation;
+import be.cytomine.dto.auth.AuthInformation;
+import be.cytomine.dto.image.AreaDTO;
 import be.cytomine.exceptions.AlreadyExistException;
 import be.cytomine.exceptions.WrongArgumentException;
 import be.cytomine.repositorynosql.social.*;
 import be.cytomine.service.PermissionService;
 import be.cytomine.service.database.SequenceService;
-import be.cytomine.service.dto.AreaDTO;
 import be.cytomine.service.image.server.StorageService;
 import be.cytomine.service.search.UserSearchExtension;
 import be.cytomine.service.social.ImageConsultationService;
@@ -679,12 +679,6 @@ public class SecUserServiceTests {
         assertThat(secUserService.findCreator(projectWhereUserIsManager)).contains(user);
     }
 
-    @Disabled("software package")
-    @Test
-    void list_project_users_show_userjob() {
-
-    }
-
     @Test
     void list_ontology_users() {
         User user = builder.given_superadmin();
@@ -721,11 +715,6 @@ public class SecUserServiceTests {
 
         assertThat(secUserService.listAll(project))
                 .contains(user);
-    }
-
-    @Disabled("software package")
-    @Test
-    void list_all_project_users_with_user_job() {
     }
 
     @Test
@@ -1159,7 +1148,6 @@ public class SecUserServiceTests {
         uploadedFile.setUser(user);
 
         Storage storage = builder.given_a_storage(user);
-        //storageService.initUserStorage(user);
 
         ProjectDefaultLayer projectDefaultLayer =
                 builder.given_a_project_default_layer(builder.given_a_project(), user);
@@ -1201,14 +1189,6 @@ public class SecUserServiceTests {
         commandResponse = secUserService.delete(user, null, null, true);
         assertThat(commandResponse).isNotNull();
         assertThat(commandResponse.getStatus()).isEqualTo(200);
-    }
-
-
-
-    @Disabled("software package")
-    @Test
-    void delete_user_job_with_dependency() {
-
     }
 
     @Test
@@ -1311,14 +1291,4 @@ public class SecUserServiceTests {
         assertThat(permissionService.hasACLPermission(storage, user.getUsername(), ADMINISTRATION)).isFalse();
         assertThat(permissionService.hasACLPermission(storage, user.getUsername(), READ)).isFalse();
     }
-
-
-
-
-    @Disabled
-    @Test
-    void delete_valid_user_job_with_success() {
-
-    }
-
 }

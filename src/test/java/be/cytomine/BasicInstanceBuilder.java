@@ -1,26 +1,30 @@
 package be.cytomine;
 
-/*
-* Copyright (c) 2009-2022. Authors: see NOTICE file.
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*/
+import java.util.List;
+import java.util.Optional;
+import java.util.Random;
+import java.util.UUID;
+
+import jakarta.persistence.EntityManager;
+import jakarta.transaction.Transactional;
+import org.locationtech.jts.io.ParseException;
+import org.locationtech.jts.io.WKTReader;
+import org.springframework.security.acls.model.Permission;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.support.TransactionCallbackWithoutResult;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import be.cytomine.domain.CytomineDomain;
+import be.cytomine.domain.annotation.Annotation;
+import be.cytomine.domain.annotation.AnnotationLayer;
+import be.cytomine.domain.appengine.TaskRun;
+import be.cytomine.domain.appengine.TaskRunLayer;
 import be.cytomine.domain.image.*;
+import be.cytomine.domain.image.group.ImageGroup;
+import be.cytomine.domain.image.group.ImageGroupImageInstance;
 import be.cytomine.domain.image.server.Storage;
 import be.cytomine.domain.meta.*;
-import be.cytomine.domain.middleware.ImageServer;
 import be.cytomine.domain.ontology.*;
 import be.cytomine.domain.processing.ImageFilter;
 import be.cytomine.domain.processing.ImageFilterProject;
@@ -30,33 +34,15 @@ import be.cytomine.domain.project.ProjectRepresentativeUser;
 import be.cytomine.domain.security.*;
 import be.cytomine.exceptions.ObjectNotFoundException;
 import be.cytomine.repository.image.MimeRepository;
-import be.cytomine.repository.processing.ImagingServerRepository;
 import be.cytomine.repository.security.SecRoleRepository;
 import be.cytomine.repository.security.SecUserRepository;
 import be.cytomine.service.PermissionService;
-import be.cytomine.utils.StringUtils;
-import com.vividsolutions.jts.io.ParseException;
-import com.vividsolutions.jts.io.WKTReader;
-import org.springframework.security.acls.model.Permission;
-import org.springframework.stereotype.Component;
-import org.springframework.transaction.TransactionStatus;
-import org.springframework.transaction.support.TransactionCallbackWithoutResult;
-import org.springframework.transaction.support.TransactionTemplate;
-
-import javax.persistence.EntityManager;
-import javax.transaction.Transactional;
-import java.util.List;
-import java.util.Optional;
-import java.util.Random;
-import java.util.UUID;
 
 import static org.springframework.security.acls.domain.BasePermission.ADMINISTRATION;
 
 @Component
 @Transactional
 public class BasicInstanceBuilder {
-
-    private User SUPERADMIN;
 
     public static final String ROLE_SUPER_ADMIN = "ROLE_SUPER_ADMIN";
 
@@ -80,8 +66,6 @@ public class BasicInstanceBuilder {
 
     ApplicationBootstrap applicationBootstrap;
 
-    ImagingServerRepository imagingServerRepository;
-
     private static User aUser;
     private static User anAdmin;
     private static User aGuest;
@@ -93,8 +77,7 @@ public class BasicInstanceBuilder {
             PermissionService permissionService,
             SecRoleRepository secRoleRepository,
             MimeRepository mimeRepository,
-            ApplicationBootstrap applicationBootstrap,
-            ImagingServerRepository imagingServerRepository) {
+            ApplicationBootstrap applicationBootstrap) {
         if (secRoleRepository.count()==0) {
             applicationBootstrap.init();
         }
@@ -104,7 +87,6 @@ public class BasicInstanceBuilder {
         this.secRoleRepository = secRoleRepository;
         this.mimeRepository = mimeRepository;
         this.transactionTemplate = transactionTemplate;
-        this.imagingServerRepository = imagingServerRepository;
 
         this.transactionTemplate.execute(new TransactionCallbackWithoutResult() {
             @Override
@@ -206,7 +188,6 @@ public class BasicInstanceBuilder {
     }
 
     public static User given_a_not_persisted_user() {
-        //User user2 = new User();
         User user = new User();
         user.setFirstname("firstname");
         user.setLastname("lastname");
@@ -221,7 +202,6 @@ public class BasicInstanceBuilder {
 
 
     public static UserJob given_a_user_job_not_persisted(User creator) {
-        //User user2 = new User();
         UserJob user = new UserJob();
         user.setUsername(randomString());
         user.setUser(creator);
@@ -251,8 +231,6 @@ public class BasicInstanceBuilder {
         ImageFilter imageFilter = new ImageFilter();
         imageFilter.setName(randomString());
         imageFilter.setMethod(randomString());
-        imageFilter.setImagingServer(imagingServerRepository.findAll().stream().findFirst()
-                .orElseThrow(() -> new ObjectNotFoundException("ImageFilter", "(at least one)")));
         return imageFilter;
     }
     public ImageFilter given_a_image_filter() {
@@ -378,7 +356,6 @@ public class BasicInstanceBuilder {
         uploadedFile.setFilename(randomString());
         uploadedFile.setOriginalFilename(randomString());
         uploadedFile.setExt("tif");
-        uploadedFile.setImageServer(given_an_image_server());
         uploadedFile.setContentType(contentType);
         uploadedFile.setSize(100L);
         uploadedFile.setParent(null);
@@ -416,19 +393,6 @@ public class BasicInstanceBuilder {
         return UUID.randomUUID().toString();
     }
 
-    public ImageServer given_an_image_server() {
-        ImageServer imageServer = given_a_not_persisted_image_server();
-        return persistAndReturn(imageServer);
-    }
-
-    public ImageServer given_a_not_persisted_image_server() {
-        ImageServer imageServer = new ImageServer();
-        imageServer.setName(randomString());
-        imageServer.setUrl("http://" + randomString());
-        imageServer.setBasePath("/data");
-        imageServer.setAvailable(true);
-        return imageServer;
-    }
 
     public AbstractImage given_an_abstract_image() {
         AbstractImage imageServer = given_a_not_persisted_abstract_image();
@@ -1059,5 +1023,167 @@ public class BasicInstanceBuilder {
         return secUserSecRole;
     }
 
+    public ImageGroup given_a_not_persisted_imagegroup() {
+        return given_a_not_persisted_imagegroup(given_a_project());
+    }
 
+    public ImageGroup given_a_not_persisted_imagegroup(Project project) {
+        ImageGroup imageGroup = new ImageGroup();
+        imageGroup.setName(randomString());
+        imageGroup.setProject(project);
+        return imageGroup;
+    }
+
+    public ImageGroup given_an_imagegroup() {
+        return persistAndReturn(given_a_not_persisted_imagegroup(given_a_project()));
+    }
+
+    public ImageGroup given_an_imagegroup(Project project) {
+        return persistAndReturn(given_a_not_persisted_imagegroup(project));
+    }
+
+    public ImageGroupImageInstance given_a_not_persisted_imagegroup_imageinstance() {
+        Project project = given_a_project();
+        ImageGroup group = given_an_imagegroup(project);
+        ImageInstance image = given_an_image_instance(project);
+
+        return given_a_not_persisted_imagegroup_imageinstance(group, image);
+    }
+
+    public ImageGroupImageInstance given_a_not_persisted_imagegroup_imageinstance(ImageGroup group, ImageInstance image) {
+        ImageGroupImageInstance igii = new ImageGroupImageInstance();
+        igii.setGroup(group);
+        igii.setImage(image);
+        return igii;
+    }
+
+    public ImageGroupImageInstance given_an_imagegroup_imageinstance() {
+        ImageGroupImageInstance igii = given_a_not_persisted_imagegroup_imageinstance();
+        Project project = given_a_project();
+        igii.setGroup(given_an_imagegroup(project));
+        igii.setImage(given_an_image_instance(project));
+        return persistAndReturn(igii);
+    }
+
+    public ImageGroupImageInstance given_an_imagegroup_imageinstance(ImageGroup group, ImageInstance image) {
+        ImageGroupImageInstance igii = given_a_not_persisted_imagegroup_imageinstance();
+        igii.setGroup(group);
+        igii.setImage(image);
+        return persistAndReturn(igii);
+    }
+
+    public AnnotationGroup given_a_not_persisted_annotation_group(Project project, ImageGroup imageGroup) {
+        AnnotationGroup annotationGroup = new AnnotationGroup();
+        annotationGroup.setProject(project);
+        annotationGroup.setImageGroup(imageGroup);
+        annotationGroup.setType("SAME_OBJECT");
+        return annotationGroup;
+    }
+
+    public AnnotationGroup given_a_not_persisted_annotation_group() {
+        Project project = given_a_project();
+        return given_a_not_persisted_annotation_group(project, given_an_imagegroup(project));
+    }
+
+    public AnnotationGroup given_an_annotation_group(Project project, ImageGroup imageGroup) {
+        return persistAndReturn(given_a_not_persisted_annotation_group(project, imageGroup));
+    }
+
+    public AnnotationGroup given_an_annotation_group() {
+        return persistAndReturn(given_a_not_persisted_annotation_group());
+    }
+
+    public AnnotationLink given_a_not_persisted_annotation_link(
+            UserAnnotation annotation, AnnotationGroup annotationGroup, ImageInstance image
+    ) {
+        AnnotationLink annotationLink = new AnnotationLink();
+        annotationLink.setAnnotationClassName(annotation.getClass().getName());
+        annotationLink.setAnnotationIdent(annotation.getId());
+        annotationLink.setGroup(annotationGroup);
+        annotationLink.setImage(image);
+
+        return annotationLink;
+    }
+
+    public AnnotationLink given_a_not_persisted_annotation_link() {
+        Project project = given_a_project();
+
+        return given_a_not_persisted_annotation_link(
+                given_a_user_annotation(project),
+                given_an_annotation_group(project, given_an_imagegroup(project)),
+                given_an_image_instance(project)
+        );
+    }
+
+    public AnnotationLink given_an_annotation_link(
+            UserAnnotation annotation, AnnotationGroup annotationGroup, ImageInstance image
+    ) {
+        return persistAndReturn(given_a_not_persisted_annotation_link(
+                annotation, annotationGroup, image
+        ));
+    }
+
+    public AnnotationLink given_an_annotation_link() {
+        return persistAndReturn(given_a_not_persisted_annotation_link());
+    }
+
+    public TaskRun given_a_not_persisted_task_run() {
+        return given_a_not_persisted_task_run(given_a_project(), UUID.randomUUID(), given_an_image_instance());
+    }
+
+    public TaskRun given_a_not_persisted_task_run(Project project, UUID taskRunId, ImageInstance image) {
+        TaskRun taskRun = new TaskRun();
+        taskRun.setProject(project);
+        taskRun.setUser(given_superadmin());
+        taskRun.setTaskRunId(taskRunId);
+        taskRun.setImage(image);
+        return taskRun;
+    }
+
+    public TaskRun given_a_task_run() {
+        return persistAndReturn(given_a_not_persisted_task_run(given_a_project(), UUID.randomUUID(), given_an_image_instance()));
+    }
+
+    public AnnotationLayer given_a_not_persisted_annotation_layer() {
+        AnnotationLayer annotationLayer = new AnnotationLayer();
+        annotationLayer.setName(randomString());
+        return annotationLayer;
+    }
+
+    public AnnotationLayer given_a_persisted_annotation_layer() {
+        return persistAndReturn(given_a_not_persisted_annotation_layer());
+    }
+
+    public Annotation given_a_not_persisted_annotation(AnnotationLayer annotationLayer) {
+        Annotation annotation = new Annotation();
+        annotation.setAnnotationLayer(annotationLayer);
+        annotation.setLocation("{\"type\": \"Point\",\"coordinates\": [0, 0]}".getBytes());
+        return annotation;
+    }
+
+    public Annotation given_a_not_persisted_annotation() {
+        return given_a_not_persisted_annotation(given_a_persisted_annotation_layer());
+    }
+
+    public Annotation given_a_persisted_annotation() {
+        return persistAndReturn(given_a_not_persisted_annotation());
+    }
+
+    public TaskRunLayer given_a_not_persisted_task_run_layer(AnnotationLayer annotationLayer, TaskRun taskRun, ImageInstance image) {
+        TaskRunLayer taskRunLayer = new TaskRunLayer();
+        taskRunLayer.setAnnotationLayer(annotationLayer);
+        taskRunLayer.setTaskRun(taskRun);
+        taskRunLayer.setImage(image);
+        taskRunLayer.setXOffset(new Random().nextInt(100));
+        taskRunLayer.setYOffset(new Random().nextInt(100));
+        return taskRunLayer;
+    }
+
+    public TaskRunLayer given_a_not_persisted_task_run_layer() {
+        return given_a_not_persisted_task_run_layer(given_a_persisted_annotation_layer(), given_a_task_run(), given_an_image_instance());
+    }
+
+    public TaskRunLayer given_a_persisted_task_run_layer() {
+        return persistAndReturn(given_a_not_persisted_task_run_layer());
+    }
 }

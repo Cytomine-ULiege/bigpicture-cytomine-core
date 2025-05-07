@@ -23,10 +23,8 @@ import be.cytomine.domain.image.SliceInstance;
 import be.cytomine.domain.ontology.*;
 import be.cytomine.domain.project.Project;
 import be.cytomine.domain.security.SecUser;
-import be.cytomine.domain.security.User;
-import be.cytomine.dto.AnnotationLight;
-import be.cytomine.dto.SimplifiedAnnotation;
-import be.cytomine.exceptions.CytomineMethodNotYetImplementedException;
+import be.cytomine.dto.annotation.SimplifiedAnnotation;
+import be.cytomine.dto.image.BoundariesCropParameter;
 import be.cytomine.exceptions.ObjectNotFoundException;
 import be.cytomine.exceptions.WrongArgumentException;
 import be.cytomine.repository.AlgoAnnotationListing;
@@ -37,8 +35,6 @@ import be.cytomine.service.AnnotationListingService;
 import be.cytomine.service.CurrentUserService;
 import be.cytomine.service.ModelService;
 import be.cytomine.service.command.TransactionService;
-import be.cytomine.service.dto.BoundariesCropParameter;
-import be.cytomine.service.image.ImageInstanceService;
 import be.cytomine.service.image.SliceCoordinatesService;
 import be.cytomine.service.image.SliceInstanceService;
 import be.cytomine.service.meta.PropertyService;
@@ -49,17 +45,16 @@ import be.cytomine.utils.CommandResponse;
 import be.cytomine.utils.GeometryUtils;
 import be.cytomine.utils.JsonObject;
 import be.cytomine.utils.Task;
-import com.vividsolutions.jts.geom.Envelope;
-import com.vividsolutions.jts.geom.Geometry;
-import com.vividsolutions.jts.io.ParseException;
-import com.vividsolutions.jts.io.WKTReader;
-import lombok.RequiredArgsConstructor;
+import org.locationtech.jts.geom.Envelope;
+import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.io.ParseException;
+import org.locationtech.jts.io.WKTReader;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import javax.persistence.EntityManager;
-import javax.transaction.Transactional;
+import jakarta.persistence.EntityManager;
+import jakarta.transaction.Transactional;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -70,6 +65,9 @@ import static org.springframework.security.acls.domain.BasePermission.READ;
 @Service
 @Transactional
 public class AlgoAnnotationService extends ModelService {
+
+    @Autowired
+    private AnnotationLinkService annotationLinkService;
 
     @Autowired
     private AlgoAnnotationRepository algoAnnotationRepository;
@@ -167,15 +165,6 @@ public class AlgoAnnotationService extends ModelService {
         algoAnnotationListing.setProject(project.getId());
         return annotationListingService.executeRequest(algoAnnotationListing);
     }
-
-    //TODO:
-//    public List list(Job job, List<String> propertiesToShow) {
-//        securityACLService.check(project,READ);
-//        AlgoAnnotationListing algoAnnotationListing = new AlgoAnnotationListing(entityManager);
-//        algoAnnotationListing.setColumnsToPrint(propertiesToShow);
-//        algoAnnotationListing.setProject(project.getId());
-//        return annotationListingService.executeRequest(algoAnnotationListing);
-//    }
 
     public List listIncluded(ImageInstance image, String geometry, SecUser user, List<Long> terms, AnnotationDomain annotation, List<String> propertiesToShow) {
         securityACLService.check(image.container(), READ);
@@ -336,6 +325,21 @@ public class AlgoAnnotationService extends ModelService {
             }
             ((Map<String, Object>)commandResponse.getData().get("annotation")).put("annotationTrack", annotationTracks);
             ((Map<String, Object>)commandResponse.getData().get("annotation")).put("track", annotationTracks.stream().map(x -> x.getTrack()).collect(Collectors.toList()));
+        }
+
+        // Add annotation-group/link if any
+        Long groupId = jsonObject.getJSONAttrLong("group", null);
+        if (groupId != null) {
+            CommandResponse response = annotationLinkService.addAnnotationLink(
+                    AlgoAnnotation.class.getName(),
+                    addedAnnotation.getId(),
+                    groupId,
+                    addedAnnotation.getImage().getId(),
+                    transaction
+            );
+
+            ((Map<String, Object>)commandResponse.getData().get("annotation")).put("group", groupId);
+            ((Map<String, Object>)commandResponse.getData().get("annotation")).put("annotationLinks", response.getData().get("annotationlink"));
         }
 
         return commandResponse;

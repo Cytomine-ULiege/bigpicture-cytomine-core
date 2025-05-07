@@ -18,11 +18,11 @@ package be.cytomine.service.image;
 
 import java.util.*;
 import java.util.stream.Collectors;
-import javax.persistence.EntityManager;
-import javax.transaction.Transactional;
 
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.WireMock;
+import jakarta.persistence.EntityManager;
+import jakarta.transaction.Transactional;
 import org.assertj.core.api.AssertionsForClassTypes;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -242,7 +242,7 @@ public class ImageInstanceServiceTests {
         ImageInstance imageInstance2 = builder.given_an_image_instance();
         builder.persistAndReturn(imageInstance2);
 
-        Page<Map<String, Object>> page = imageInstanceService.list(imageInstance1.getProject(), new ArrayList<>(), "id", "asc", 0L, 0L, false);
+        Page<Map<String, Object>> page = imageInstanceService.list(imageInstance1.getProject(), new ArrayList<>(), "id", "asc", 0L, 0L, false, false);
 
         assertThat(page.getTotalElements()).isGreaterThanOrEqualTo(1);
         assertThat(page.getContent().stream().map(x -> x.get("id")).collect(Collectors.toList())).contains(imageInstance1.getId());
@@ -255,7 +255,7 @@ public class ImageInstanceServiceTests {
         NestedImageInstance nestedImageInstance1 = builder.given_a_nested_image_instance();
         nestedImageInstance1.setProject(imageInstance1.getProject());
         builder.persistAndReturn(nestedImageInstance1);
-        Page<Map<String, Object>> page = imageInstanceService.list(imageInstance1.getProject(), new ArrayList<>(), "id", "asc", 0L, 0L, false);
+        Page<Map<String, Object>> page = imageInstanceService.list(imageInstance1.getProject(), new ArrayList<>(), "id", "asc", 0L, 0L, false, false);
 
         assertThat(page.getTotalElements()).isGreaterThanOrEqualTo(1);
         assertThat(page.getContent().stream().map(x -> x.get("id")).collect(Collectors.toList())).contains(imageInstance1.getId());
@@ -287,7 +287,7 @@ public class ImageInstanceServiceTests {
         ImageInstance imageInstance2 = builder.given_an_image_instance();
         builder.persistAndReturn(imageInstance2);
 
-        Page<Map<String, Object>> page = imageInstanceService.list(imageInstance1.getProject(), new ArrayList<>(), "id", "asc", 0L, 0L, true);
+        Page<Map<String, Object>> page = imageInstanceService.list(imageInstance1.getProject(), new ArrayList<>(), "id", "asc", 0L, 0L, true, false);
 
         assertThat(page.getTotalElements()).isGreaterThanOrEqualTo(1);
         assertThat(page.getContent().stream().map(x -> x.get("id")).collect(Collectors.toList())).contains(imageInstance1.getId());
@@ -302,7 +302,7 @@ public class ImageInstanceServiceTests {
         nestedImageInstance1.setProject(imageInstance1.getProject());
         builder.persistAndReturn(nestedImageInstance1);
 
-        Page<Map<String, Object>> page = imageInstanceService.list(imageInstance1.getProject(), new ArrayList<>(), "id", "asc", 0L, 0L, true);
+        Page<Map<String, Object>> page = imageInstanceService.list(imageInstance1.getProject(), new ArrayList<>(), "id", "asc", 0L, 0L, true, false);
 
         assertThat(page.getTotalElements()).isGreaterThanOrEqualTo(1);
         assertThat(page.getContent().stream().map(x -> x.get("id")).collect(Collectors.toList())).contains(imageInstance1.getId());
@@ -726,18 +726,6 @@ public class ImageInstanceServiceTests {
     void delete_image_instance_with_dependencies_with_success() {
         SliceInstance sliceInstance = builder.given_a_slice_instance();
         ImageInstance imageInstance = sliceInstance.getImage();
-
-//        deleteDependentAlgoAnnotation(imageInstance, transaction, task);
-//        deleteDependentReviewedAnnotation(imageInstance, transaction, task);
-//        deleteDependentUserAnnotation(imageInstance, transaction, task);
-//        deleteDependentAnnotationAction(imageInstance, transaction, task);
-//        deleteDependentLastUserPosition(imageInstance, transaction, task);
-//        deleteDependentPersistentUserPosition(imageInstance, transaction, task);
-//        deleteDependentPersistentImageConsultation(imageInstance, transaction, task);
-//        deleteDependentProperty(imageInstance, transaction, task);
-//        deleteDependentNestedImageInstance(imageInstance, transaction, task);
-//        deleteDependentSliceInstance(imageInstance, transaction, task);
-//        deleteDependentTrack(imageInstance, transaction, task);
 
         AlgoAnnotation algoAnnotation = builder.given_a_algo_annotation();
         algoAnnotation.setImage(imageInstance);

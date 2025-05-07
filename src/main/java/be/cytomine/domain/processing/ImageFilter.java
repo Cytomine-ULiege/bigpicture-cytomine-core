@@ -21,13 +21,13 @@ import be.cytomine.utils.JsonObject;
 import lombok.Getter;
 import lombok.Setter;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.EntityManager;
-import javax.persistence.ManyToOne;
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Null;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.ManyToOne;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Null;
 import java.util.Optional;
 
 @Entity
@@ -43,9 +43,6 @@ public class ImageFilter extends CytomineDomain {
     @NotBlank
     String method;
 
-    @ManyToOne
-    private ImagingServer imagingServer;
-
     Boolean available = true;
 
     public CytomineDomain buildDomainFromJson(JsonObject json, EntityManager entityManager) {
@@ -53,7 +50,6 @@ public class ImageFilter extends CytomineDomain {
         processingServer.id = json.getJSONAttrLong("id",null);
         processingServer.name = json.getJSONAttrStr("name", true);
         processingServer.method = json.getJSONAttrStr("method", null);
-        processingServer.imagingServer = (ImagingServer) json.getJSONAttrDomain(entityManager, "imagingServer", new ImagingServer(), false);
         processingServer.available = json.getJSONAttrBoolean("available", true);
         processingServer.created = json.getJSONAttrDate("created");
         processingServer.updated = json.getJSONAttrDate("updated");
@@ -65,7 +61,6 @@ public class ImageFilter extends CytomineDomain {
         ImageFilter processingServer = (ImageFilter)domain;
         returnArray.put("name", processingServer.getName());
         returnArray.put("method", processingServer.getMethod());
-        returnArray.put("imagingServer", Optional.ofNullable(processingServer.getImagingServer()).map(CytomineDomain::getId).orElse(null));
         returnArray.put("available", processingServer.getAvailable());
         returnArray.put("baseUrl", processingServer.getBaseUrl());
         return returnArray;
