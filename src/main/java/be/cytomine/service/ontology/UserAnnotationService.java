@@ -27,7 +27,6 @@ import be.cytomine.domain.security.User;
 import be.cytomine.dto.annotation.AnnotationLight;
 import be.cytomine.dto.annotation.SimplifiedAnnotation;
 import be.cytomine.dto.image.BoundariesCropParameter;
-import be.cytomine.dto.image.CropParameter;
 import be.cytomine.exceptions.ForbiddenException;
 import be.cytomine.exceptions.ObjectNotFoundException;
 import be.cytomine.exceptions.WrongArgumentException;
@@ -63,7 +62,6 @@ import org.springframework.stereotype.Service;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 
-import java.io.UnsupportedEncodingException;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -399,20 +397,7 @@ public class UserAnnotationService extends ModelService {
 
         /* Index the annotation */
         AnnotationDomain annotation = (AnnotationDomain) domain;
-
-        CropParameter parameters = new CropParameter();
-        parameters.setComplete(true);
-        parameters.setDraw(true);
-        parameters.setFormat("png");
-        parameters.setIncreaseArea(1.25);
-        parameters.setLocation(annotation.getWktLocation());
-        parameters.setMaxSize(256);
-
-        try {
-            retrievalService.indexAnnotation(annotation, parameters, null);
-        } catch (ParseException | UnsupportedEncodingException exception) {
-            log.error(exception.getMessage());
-        }
+        retrievalService.indexAnnotation(annotation);
     }
 
     /**

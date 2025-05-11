@@ -52,6 +52,7 @@ import be.cytomine.service.ontology.AnnotationTermService;
 import be.cytomine.service.ontology.OntologyService;
 import be.cytomine.service.ontology.ReviewedAnnotationService;
 import be.cytomine.service.search.ProjectSearchExtension;
+import be.cytomine.service.search.RetrievalService;
 import be.cytomine.service.security.SecUserSecRoleService;
 import be.cytomine.service.security.SecUserService;
 import be.cytomine.service.security.SecurityACLService;
@@ -74,6 +75,7 @@ import org.springframework.http.*;
 import org.springframework.security.acls.domain.BasePermission;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import jakarta.mail.MessagingException;
 import jakarta.persistence.Query;
@@ -81,12 +83,12 @@ import jakarta.persistence.Tuple;
 import jakarta.persistence.TupleElement;
 import jakarta.transaction.Transactional;
 import java.math.BigInteger;
+import java.net.URI;
 import java.util.*;
 import java.util.stream.Collectors;
 
 import static be.cytomine.service.social.ImageConsultationService.DATABASE_NAME;
 import static com.mongodb.client.model.Aggregates.*;
-import static com.mongodb.client.model.Aggregates.sort;
 import static com.mongodb.client.model.Filters.eq;
 import static com.mongodb.client.model.Filters.gte;
 import static com.mongodb.client.model.Sorts.descending;
@@ -96,9 +98,6 @@ import static org.springframework.security.acls.domain.BasePermission.*;
 @Service
 @Transactional
 public class ProjectService extends ModelService {
-
-    @Autowired
-    private ApplicationProperties applicationProperties;
 
     @Autowired
     private CommandHistoryRepository commandHistoryRepository;
@@ -177,6 +176,9 @@ public class ProjectService extends ModelService {
 
     @Autowired
     private RestTemplate restTemplate;
+
+    @Autowired
+    private RetrievalService retrievalService;
 
     public Project get(Long id) {
         return find(id).orElse(null);
@@ -601,28 +603,6 @@ public class ProjectService extends ModelService {
         return projectRepository.listByUser(user);
     }
 
-    private void createStorage(String projectId) {
-        String url = this.applicationProperties.getRetrievalServerURL() + "/api/storages";
-        Map<String, String> payload = new HashMap<>();
-        payload.put("name", projectId);
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        HttpEntity<Map<String, String>> requestEntity = new HttpEntity<>(payload, headers);
-
-        log.debug("Sending POST request to {}, {}", url, projectId);
-        ResponseEntity<String> response = restTemplate.exchange(
-            url,
-            HttpMethod.POST,
-            requestEntity,
-            String.class
-        );
-
-        if (!response.getStatusCode().equals(HttpStatus.OK)) {
-            log.error("Failed to create storage for project {}", projectId);
-        }
-    }
-
     @Override
     public CommandResponse add(JsonObject jsonObject) {
         return add(jsonObject, null);
@@ -673,8 +653,7 @@ public class ProjectService extends ModelService {
             }
         }
 
-        // Create retrieval storage
-        createStorage(project.getId().toString());
+        retrievalService.createStorage(project.getId().toString());
 
         return commandResponse;
     }
@@ -972,6 +951,7 @@ public class ProjectService extends ModelService {
         undoStackItemRepository.deleteAllByCommand_Project(project);
         redoStackItemRepository.deleteAllByCommand_Project(project);
         commandRepository.deleteAllByProject(project);
+        retrievalService.deleteStorage(project.getId().toString());
     }
 
     public List<Object> getStringParamsI18n(CytomineDomain domain) {

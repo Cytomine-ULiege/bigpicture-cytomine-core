@@ -1,26 +1,13 @@
 package be.cytomine.service.search;
 
-/*
- * Copyright (c) 2009-2023. Authors: see NOTICE file.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-import java.io.UnsupportedEncodingException;
+import java.net.URI;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
-import com.vividsolutions.jts.io.ParseException;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.*;
@@ -31,99 +18,140 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import be.cytomine.config.properties.ApplicationProperties;
-import be.cytomine.domain.CropParameter;
-import be.cytomine.domain.CytomineDomain;
 import be.cytomine.domain.ontology.AnnotationDomain;
-import be.cytomine.domain.search.RetrievalServer;
-import be.cytomine.dto.PimsResponse;
+import be.cytomine.dto.image.CropParameter;
 import be.cytomine.dto.search.SearchResponse;
-import be.cytomine.service.ModelService;
 import be.cytomine.service.middleware.ImageServerService;
-import be.cytomine.utils.JsonObject;
 
 @Slf4j
+@RequiredArgsConstructor
 @Service
-public class RetrievalService extends ModelService {
+public class RetrievalService {
+
+    public static final String CBIR_API_BASE_PATH = "/cbir";
+
+    private final static String INDEX_NAME = "annotation";
+
+    private final ApplicationProperties applicationProperties;
 
     private final ImageServerService imageServerService;
 
     private final RestTemplate restTemplate;
 
-    private final String baseUrl;
-
-    private final String indexName = "annotation";
-
-    public RetrievalService(
-        ApplicationProperties applicationProperties,
-        ImageServerService imageServerService,
-        RestTemplate restTemplate
-    ) {
-        this.imageServerService = imageServerService;
-        this.restTemplate = restTemplate;
-        this.baseUrl = applicationProperties.getRetrievalServerURL();
+    public String getInternalCbirURL() {
+        return applicationProperties.getInternalProxyURL() + CBIR_API_BASE_PATH;
     }
 
-    @Override
-    public Class currentDomain() {
-        return RetrievalServer.class;
+    public void createStorage(String projectId) {
+        URI url = UriComponentsBuilder
+            .fromHttpUrl(getInternalCbirURL())
+            .path("/storages")
+            .build()
+            .toUri();
+
+        Map<String, String> payload = new HashMap<>();
+        payload.put("name", projectId);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<Map<String, String>> requestEntity = new HttpEntity<>(payload, headers);
+
+        log.debug("Create cbir storage for project {}", projectId);
+        ResponseEntity<String> response = restTemplate.exchange(
+            url,
+            HttpMethod.POST,
+            requestEntity,
+            String.class
+        );
+
+        if (!response.getStatusCode().equals(HttpStatus.OK)) {
+            log.error("Failed to create storage for project {}", projectId);
+            throw new RuntimeException("Failed to create storage: " + response.getBody());
+        }
     }
 
-    @Override
-    public CytomineDomain createFromJSON(JsonObject json) {
-        return new RetrievalServer().buildDomainFromJson(json, getEntityManager());
+    public void deleteStorage(String projectId) {
+        URI url = UriComponentsBuilder
+            .fromHttpUrl(getInternalCbirURL())
+            .pathSegment("storages", projectId)
+            .build()
+            .toUri();
+
+        log.debug("Create cbir storage for project {}", projectId);
+        ResponseEntity<String> response = restTemplate.exchange(
+            url,
+            HttpMethod.DELETE,
+            null,
+            String.class
+        );
+
+        if (!response.getStatusCode().equals(HttpStatus.OK)) {
+            log.error("Failed to delete storage for project {}", projectId);
+            throw new RuntimeException("Failed to delete storage: " + response.getBody());
+        }
     }
 
-    private HttpEntity<MultiValueMap<String, Object>> createMultipartRequestEntity(
-        AnnotationDomain annotation,
-        CropParameter parameters,
-        String etag
-    ) throws ParseException, UnsupportedEncodingException {
-        // Request annotation crop from PIMS
-        PimsResponse crop = imageServerService.crop(annotation.getSlice().getBaseSlice(), parameters, etag);
+    private byte[] getImageAnnotation(AnnotationDomain annotation) {
+        CropParameter parameters = new CropParameter();
+        parameters.setComplete(true);
+        parameters.setDraw(true);
+        parameters.setFormat("png");
+        parameters.setIncreaseArea(1.25);
+        parameters.setLocation(annotation.getWktLocation());
+        parameters.setMaxSize(256);
 
+        try {
+            ResponseEntity<byte[]> response = imageServerService.crop(annotation, parameters, null, null);
+            return response.getBody();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private HttpEntity<MultiValueMap<String, Object>> createEntity(AnnotationDomain annotation) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.MULTIPART_FORM_DATA);
 
-        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-        body.add("image", new ByteArrayResource(crop.getContent()) {
+        byte[] image = Objects.requireNonNull(getImageAnnotation(annotation));
+        ByteArrayResource resource =  new ByteArrayResource(image) {
             @Override
             public String getFilename() {
                 return annotation.getId().toString();
             }
-        });
+        };
+
+        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        body.add("image", resource);
 
         return new HttpEntity<>(body, headers);
     }
 
-    public ResponseEntity<String> indexAnnotation(
-        AnnotationDomain annotation,
-        CropParameter parameters,
-        String etag
-    ) throws ParseException, UnsupportedEncodingException {
+    public ResponseEntity<String> indexAnnotation(AnnotationDomain annotation) {
         String storageName = annotation.getProject().getId().toString();
-        String url = UriComponentsBuilder
-            .fromHttpUrl(this.baseUrl + "/api/images")
+        URI url = UriComponentsBuilder
+            .fromHttpUrl(getInternalCbirURL())
+            .path("/images")
             .queryParam("storage", storageName)
-            .queryParam("index", this.indexName)
-            .toUriString();
+            .queryParam("index", INDEX_NAME)
+            .build()
+            .toUri();
 
-        HttpEntity<MultiValueMap<String, Object>> requestEntity = createMultipartRequestEntity(
-            annotation,
-            parameters,
-            etag
-        );
+        HttpEntity<MultiValueMap<String, Object>> requestEntity = createEntity(annotation);
+        log.debug("Create index for annotation {}", annotation.getId());
 
-        return this.restTemplate.exchange(url, HttpMethod.POST, requestEntity, String.class);
+        return restTemplate.exchange(url, HttpMethod.POST, requestEntity, String.class);
     }
 
     public ResponseEntity<String> deleteIndex(AnnotationDomain annotation) {
-        String url = UriComponentsBuilder
-            .fromHttpUrl(this.baseUrl + "/api/images/" + annotation.getId())
+        URI url = UriComponentsBuilder
+            .fromHttpUrl(getInternalCbirURL())
+            .pathSegment("images", annotation.getId().toString())
             .queryParam("storage", annotation.getProject().getId())
-            .queryParam("index", this.indexName)
-            .toUriString();
+            .queryParam("index", INDEX_NAME)
+            .build()
+            .toUri();
 
-        log.debug("Sending DELETE request to {}", url);
+        log.debug("Delete index for annotation {}", annotation.getId());
         return restTemplate.exchange(
             url,
             HttpMethod.DELETE,
@@ -146,26 +174,18 @@ public class RetrievalService extends ModelService {
         return percentages;
     }
 
-    public ResponseEntity<SearchResponse> retrieveSimilarImages(
-        AnnotationDomain annotation,
-        CropParameter parameters,
-        String etag,
-        Long nrt_neigh
-    ) throws ParseException, UnsupportedEncodingException {
+    public ResponseEntity<SearchResponse> retrieveSimilarImages(AnnotationDomain annotation, Long nrt_neigh) {
         String url = UriComponentsBuilder
-            .fromHttpUrl(this.baseUrl + "/api/search")
+            .fromHttpUrl(getInternalCbirURL())
+            .path("/search")
             .queryParam("storage", annotation.getProject().getId())
-            .queryParam("index", this.indexName)
+            .queryParam("index", INDEX_NAME)
             .queryParam("nrt_neigh", nrt_neigh + 1)
             .toUriString();
 
-        HttpEntity<MultiValueMap<String, Object>> requestEntity = createMultipartRequestEntity(
-            annotation,
-            parameters,
-            etag
-        );
+        HttpEntity<MultiValueMap<String, Object>> requestEntity = createEntity(annotation);
 
-        log.debug("Sending request to {} with entity {}", url, requestEntity);
+        log.debug("Retrieve similar annotation for annotation {}", annotation.getId());
         ResponseEntity<SearchResponse> response = this.restTemplate.exchange(
             url,
             HttpMethod.POST,
@@ -189,6 +209,6 @@ public class RetrievalService extends ModelService {
             .orElse(1.0);
         searchResponse.setSimilarities(processSimilarities(searchResponse.getSimilarities(), maxDistance));
 
-        return new ResponseEntity<>(searchResponse, HttpStatus.OK);
+        return ResponseEntity.ok(searchResponse);
     }
 }
