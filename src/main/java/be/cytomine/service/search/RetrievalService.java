@@ -185,7 +185,6 @@ public class RetrievalService {
 
         HttpEntity<MultiValueMap<String, Object>> requestEntity = createEntity(annotation);
 
-        log.debug("Retrieve similar annotation for annotation {}", annotation.getId());
         ResponseEntity<SearchResponse> response = this.restTemplate.exchange(
             url,
             HttpMethod.POST,
