@@ -24,6 +24,7 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
+import javax.persistence.EntityManager;
 
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.RequestPatternBuilder;
@@ -57,11 +58,16 @@ import be.cytomine.domain.project.Project;
 import be.cytomine.domain.security.User;
 import be.cytomine.utils.JsonObject;
 
-import static be.cytomine.service.middleware.ImageServerService.IMS_API_BASE_PATH;
+import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
+import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
-import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest(classes = CytomineCoreApplication.class)
@@ -281,6 +287,25 @@ public class UserAnnotationResourceTests {
     @Transactional
     public void add_valid_user_annotation() throws Exception {
         UserAnnotation userAnnotation = builder.given_a_not_persisted_user_annotation();
+        userAnnotation
+            .getSlice()
+            .getBaseSlice()
+            .getUploadedFile()
+            .getImageServer()
+            .setUrl("http://localhost:8888");
+
+        /* Simulate call to CBIR */
+        wireMockServer.stubFor(WireMock.post(urlPathEqualTo("/api/images"))
+            .withQueryParam("storage", WireMock.matching(".*"))
+            .withQueryParam("index", WireMock.equalTo("annotation"))
+            .willReturn(aResponse().withBody(UUID.randomUUID().toString()))
+        );
+
+        /* Simulate call to PIMS */
+        wireMockServer.stubFor(WireMock.post(urlPathMatching("/image/.*/annotation/drawing"))
+            .withRequestBody(WireMock.matching(".*"))
+            .willReturn(aResponse().withBody(UUID.randomUUID().toString().getBytes()))
+        );
 
         restUserAnnotationControllerMockMvc.perform(post("/api/userannotation.json")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -316,6 +341,26 @@ public class UserAnnotationResourceTests {
         JsonObject jsonObject = userAnnotation.toJsonObject();
         jsonObject.remove("project");
 
+        userAnnotation
+            .getSlice()
+            .getBaseSlice()
+            .getUploadedFile()
+            .getImageServer()
+            .setUrl("http://localhost:8888");
+
+        /* Simulate call to CBIR */
+        wireMockServer.stubFor(WireMock.post(urlPathEqualTo("/api/images"))
+            .withQueryParam("storage", WireMock.matching(".*"))
+            .withQueryParam("index", WireMock.equalTo("annotation"))
+            .willReturn(aResponse().withBody(UUID.randomUUID().toString()))
+        );
+
+        /* Simulate call to PIMS */
+        wireMockServer.stubFor(WireMock.post(urlPathMatching("/image/.*/annotation/drawing"))
+            .withRequestBody(WireMock.matching(".*"))
+            .willReturn(aResponse().withBody(UUID.randomUUID().toString().getBytes()))
+        );
+
         restUserAnnotationControllerMockMvc.perform(post("/api/userannotation.json")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonObject.toJsonString()))
@@ -328,11 +373,30 @@ public class UserAnnotationResourceTests {
     @Transactional
     public void add_valid_user_annotation_with_terms() throws Exception {
         UserAnnotation userAnnotation = builder.given_a_not_persisted_user_annotation();
+        userAnnotation
+            .getSlice()
+            .getBaseSlice()
+            .getUploadedFile()
+            .getImageServer()
+            .setUrl("http://localhost:8888");
 
         Term term1 = builder.given_a_term(userAnnotation.getProject().getOntology());
         Term term2 = builder.given_a_term(userAnnotation.getProject().getOntology());
         JsonObject jsonObject = userAnnotation.toJsonObject();
         jsonObject.put("term", Arrays.asList(term1.getId(), term2.getId()));
+
+        /* Simulate call to CBIR */
+        wireMockServer.stubFor(WireMock.post(urlPathEqualTo("/api/images"))
+            .withQueryParam("storage", WireMock.matching(".*"))
+            .withQueryParam("index", WireMock.equalTo("annotation"))
+            .willReturn(aResponse().withBody(UUID.randomUUID().toString()))
+        );
+
+        /* Simulate call to PIMS */
+        wireMockServer.stubFor(WireMock.post(urlPathMatching("/image/.*/annotation/drawing"))
+            .withRequestBody(WireMock.matching(".*"))
+            .willReturn(aResponse().withBody(UUID.randomUUID().toString().getBytes()))
+        );
 
         restUserAnnotationControllerMockMvc.perform(post("/api/userannotation.json")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -364,6 +428,13 @@ public class UserAnnotationResourceTests {
     @Transactional
     public void delete_user_annotation() throws Exception {
         UserAnnotation userAnnotation = builder.given_a_user_annotation();
+
+        /* Simulate call to CBIR */
+        wireMockServer.stubFor(WireMock.delete(urlPathEqualTo("/api/images/" + userAnnotation.getId()))
+            .withQueryParam("storage", WireMock.equalTo(userAnnotation.getProject().getId().toString()))
+            .withQueryParam("index", WireMock.equalTo("annotation"))
+            .willReturn(aResponse().withBody(UUID.randomUUID().toString()))
+        );
 
         restUserAnnotationControllerMockMvc.perform(delete("/api/userannotation/{id}.json", userAnnotation.getId())
                         .contentType(MediaType.APPLICATION_JSON)

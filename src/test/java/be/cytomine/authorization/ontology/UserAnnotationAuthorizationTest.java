@@ -19,6 +19,8 @@ package be.cytomine.authorization.ontology;
 import java.util.Optional;
 import java.util.UUID;
 
+import com.github.tomakehurst.wiremock.WireMockServer;
+import com.github.tomakehurst.wiremock.client.WireMock;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -39,6 +41,8 @@ import be.cytomine.domain.project.EditingMode;
 import be.cytomine.domain.project.Project;
 import be.cytomine.service.ontology.UserAnnotationService;
 
+import static com.github.tomakehurst.wiremock.client.WireMock.*;
+
 @AutoConfigureMockMvc
 @SpringBootTest(classes = CytomineCoreApplication.class)
 @Transactional
@@ -51,6 +55,43 @@ public class UserAnnotationAuthorizationTest extends CRUDAuthorizationTest {
     private UserAnnotationService userAnnotationService;
 
     private UserAnnotation userAnnotation = null;
+
+    private static WireMockServer wireMockServer;
+
+    private static void setupStub() {
+        /* Simulate call to CBIR */
+        wireMockServer.stubFor(WireMock.post(urlPathEqualTo("/api/images"))
+            .withQueryParam("storage", WireMock.matching(".*"))
+            .withQueryParam("index", WireMock.equalTo("annotation"))
+            .willReturn(aResponse().withBody(UUID.randomUUID().toString()))
+        );
+
+        wireMockServer.stubFor(WireMock.delete(urlPathMatching("/api/images/.*"))
+            .withQueryParam("storage", WireMock.matching(".*"))
+            .withQueryParam("index", WireMock.equalTo("annotation"))
+            .willReturn(aResponse().withBody(UUID.randomUUID().toString()))
+        );
+
+        /* Simulate call to PIMS */
+        wireMockServer.stubFor(WireMock.post(urlPathMatching("/image/.*/annotation/drawing"))
+            .withRequestBody(WireMock.matching(".*"))
+            .willReturn(aResponse().withBody(UUID.randomUUID().toString().getBytes()))
+        );
+    }
+
+    @BeforeAll
+    public static void beforeAll() {
+        wireMockServer = new WireMockServer(8888);
+        wireMockServer.start();
+        WireMock.configureFor("localhost", wireMockServer.port());
+
+        setupStub();
+    }
+
+    @AfterAll
+    public static void afterAll() {
+        wireMockServer.stop();
+    }
 
     @BeforeEach
     public void before() throws Exception {
@@ -122,6 +163,12 @@ public class UserAnnotationAuthorizationTest extends CRUDAuthorizationTest {
     @Override
     protected void when_i_add_domain() {
         UserAnnotation annotation = builder.given_a_not_persisted_user_annotation(this.userAnnotation.getProject());
+        annotation
+            .getSlice()
+            .getBaseSlice()
+            .getUploadedFile()
+            .getImageServer()
+            .setUrl("http://localhost:8888");
         userAnnotationService.add(annotation.toJsonObject());
     }
 

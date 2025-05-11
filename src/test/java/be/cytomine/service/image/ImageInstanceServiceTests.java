@@ -46,12 +46,12 @@ import be.cytomine.domain.ontology.ReviewedAnnotation;
 import be.cytomine.domain.ontology.UserAnnotation;
 import be.cytomine.domain.project.Project;
 import be.cytomine.domain.security.User;
-import be.cytomine.dto.image.ImageInstanceBounds;
 import be.cytomine.exceptions.AlreadyExistException;
 import be.cytomine.exceptions.WrongArgumentException;
 import be.cytomine.repositorynosql.social.AnnotationActionRepository;
 import be.cytomine.repositorynosql.social.PersistentImageConsultationRepository;
 import be.cytomine.repositorynosql.social.PersistentUserPositionRepository;
+import be.cytomine.service.dto.ImageInstanceBounds;
 import be.cytomine.service.search.ImageSearchExtension;
 import be.cytomine.service.social.AnnotationActionService;
 import be.cytomine.service.social.ImageConsultationService;
@@ -101,11 +101,22 @@ public class ImageInstanceServiceTests {
 
     private static WireMockServer wireMockServer;
 
+    private static void setupStub() {
+        /* Simulate call to CBIR */
+        wireMockServer.stubFor(WireMock.delete(urlPathMatching("/api/images/.*"))
+            .withQueryParam("storage", WireMock.matching(".*"))
+            .withQueryParam("index", WireMock.equalTo("annotation"))
+            .willReturn(aResponse().withBody(UUID.randomUUID().toString()))
+        );
+    }
+
     @BeforeAll
     public static void beforeAll() {
         wireMockServer = new WireMockServer(8888);
         wireMockServer.start();
         WireMock.configureFor("localhost", wireMockServer.port());
+
+        setupStub();
     }
 
     @AfterAll

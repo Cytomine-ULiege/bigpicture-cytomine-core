@@ -601,6 +601,28 @@ public class ProjectService extends ModelService {
         return projectRepository.listByUser(user);
     }
 
+    private void createStorage(String projectId) {
+        String url = this.applicationProperties.getRetrievalServerURL() + "/api/storages";
+        Map<String, String> payload = new HashMap<>();
+        payload.put("name", projectId);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<Map<String, String>> requestEntity = new HttpEntity<>(payload, headers);
+
+        log.debug("Sending POST request to {}, {}", url, projectId);
+        ResponseEntity<String> response = restTemplate.exchange(
+            url,
+            HttpMethod.POST,
+            requestEntity,
+            String.class
+        );
+
+        if (!response.getStatusCode().equals(HttpStatus.OK)) {
+            log.error("Failed to create storage for project {}", projectId);
+        }
+    }
+
     @Override
     public CommandResponse add(JsonObject jsonObject) {
         return add(jsonObject, null);
@@ -650,6 +672,9 @@ public class ProjectService extends ModelService {
                 taskService.updateTask(task,Math.min(100,progress),"User "+optionalUser.get().getUsername()+" added as Admin");
             }
         }
+
+        // Create retrieval storage
+        createStorage(project.getId().toString());
 
         return commandResponse;
     }
