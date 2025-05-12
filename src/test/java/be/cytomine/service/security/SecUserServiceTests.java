@@ -79,54 +79,54 @@ import static org.springframework.security.acls.domain.BasePermission.*;
 
 @SpringBootTest(classes = CytomineCoreApplication.class)
 @AutoConfigureMockMvc
-@WithMockUser(username = "superadmin")
+@WithMockUser(authorities = "ROLE_SUPER_ADMIN", username = "superadmin")
 @Transactional
 public class SecUserServiceTests {
 
     @Autowired
-    SecUserService secUserService;
+    private SecUserService secUserService;
 
     @Autowired
-    BasicInstanceBuilder builder;
+    private BasicInstanceBuilder builder;
 
     @Autowired
-    ImageConsultationService imageConsultationService;
+    private ImageConsultationService imageConsultationService;
 
     @Autowired
-    ProjectConnectionService projectConnectionService;
+    private ProjectConnectionService projectConnectionService;
 
     @Autowired
-    PersistentConnectionRepository persistentConnectionRepository;
+    private PersistentConnectionRepository persistentConnectionRepository;
 
     @Autowired
-    LastConnectionRepository lastConnectionRepository;
+    private LastConnectionRepository lastConnectionRepository;
 
     @Autowired
-    PersistentImageConsultationRepository persistentImageConsultationRepository;
+    private PersistentImageConsultationRepository persistentImageConsultationRepository;
 
     @Autowired
-    PersistentProjectConnectionRepository persistentProjectConnectionRepository;
+    private PersistentProjectConnectionRepository persistentProjectConnectionRepository;
 
     @Autowired
-    ProjectConnectionRepository projectConnectionRepository;
+    private ProjectConnectionRepository projectConnectionRepository;
 
     @Autowired
-    PersistentUserPositionRepository persistentUserPositionRepository;
+    private PersistentUserPositionRepository persistentUserPositionRepository;
 
     @Autowired
-    LastUserPositionRepository lastUserPositionRepository;
+    private LastUserPositionRepository lastUserPositionRepository;
 
     @Autowired
-    SequenceService sequenceService;
+    private SequenceService sequenceService;
 
     @Autowired
-    PermissionService permissionService;
+    private PermissionService permissionService;
 
     @Autowired
-    EntityManager entityManager;
+    private EntityManager entityManager;
 
     @Autowired
-    UserPositionService userPositionService;
+    private UserPositionService userPositionService;
 
     private static WireMockServer wireMockServer;
 

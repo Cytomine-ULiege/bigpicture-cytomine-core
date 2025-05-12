@@ -495,6 +495,10 @@ public class UserAnnotationService extends ModelService {
         securityACLService.check(domain.container(), READ, currentUser);
         //Check if user is admin, the project mode and if is the owner of the annotation
         securityACLService.checkFullOrRestrictedForOwner(domain, ((UserAnnotation)domain).getUser());
+
+        /* Delete the annotation from the CBIR database */
+        retrievalService.deleteIndex((AnnotationDomain) domain);
+
         Command c = new DeleteCommand(currentUser, transaction);
         return executeCommand(c,domain, null);
     }
@@ -502,9 +506,6 @@ public class UserAnnotationService extends ModelService {
     protected void afterDelete(CytomineDomain domain, CommandResponse response) {
         response.getData().put("annotation", response.getData().get("userannotation"));
         response.getData().remove("userannotation");
-
-        /* Delete the annotation from the CBIR database */
-        retrievalService.deleteIndex((AnnotationDomain) domain);
     }
 
     public List<CommandResponse> repeat(UserAnnotation userAnnotation, Long baseSliceId, int repeat) {
