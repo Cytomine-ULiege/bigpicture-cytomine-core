@@ -41,7 +41,8 @@ import be.cytomine.domain.project.EditingMode;
 import be.cytomine.domain.project.Project;
 import be.cytomine.service.ontology.UserAnnotationService;
 
-import static com.github.tomakehurst.wiremock.client.WireMock.*;
+import static be.cytomine.service.middleware.ImageServerService.IMS_API_BASE_PATH;
+import static be.cytomine.service.search.RetrievalService.CBIR_API_BASE_PATH;
 
 @AutoConfigureMockMvc
 @SpringBootTest(classes = CytomineCoreApplication.class)
@@ -59,23 +60,23 @@ public class UserAnnotationAuthorizationTest extends CRUDAuthorizationTest {
     private static WireMockServer wireMockServer;
 
     private static void setupStub() {
-        /* Simulate call to CBIR */
-        wireMockServer.stubFor(WireMock.post(urlPathEqualTo("/api/images"))
-            .withQueryParam("storage", WireMock.matching(".*"))
-            .withQueryParam("index", WireMock.equalTo("annotation"))
-            .willReturn(aResponse().withBody(UUID.randomUUID().toString()))
-        );
-
-        wireMockServer.stubFor(WireMock.delete(urlPathMatching("/api/images/.*"))
-            .withQueryParam("storage", WireMock.matching(".*"))
-            .withQueryParam("index", WireMock.equalTo("annotation"))
-            .willReturn(aResponse().withBody(UUID.randomUUID().toString()))
-        );
-
         /* Simulate call to PIMS */
-        wireMockServer.stubFor(WireMock.post(urlPathMatching("/image/.*/annotation/drawing"))
+        wireMockServer.stubFor(WireMock.post(WireMock.urlPathMatching(IMS_API_BASE_PATH + "/image/.*/annotation/drawing"))
             .withRequestBody(WireMock.matching(".*"))
-            .willReturn(aResponse().withBody(UUID.randomUUID().toString().getBytes()))
+            .willReturn(WireMock.aResponse().withBody(UUID.randomUUID().toString().getBytes()))
+        );
+
+        /* Simulate call to CBIR */
+        wireMockServer.stubFor(WireMock.post(WireMock.urlPathEqualTo(CBIR_API_BASE_PATH + "/images"))
+            .withQueryParam("storage", WireMock.matching(".*"))
+            .withQueryParam("index", WireMock.equalTo("annotation"))
+            .willReturn(WireMock.aResponse().withBody(UUID.randomUUID().toString()))
+        );
+
+        wireMockServer.stubFor(WireMock.delete(WireMock.urlPathMatching(CBIR_API_BASE_PATH + "/images/.*"))
+            .withQueryParam("storage", WireMock.matching(".*"))
+            .withQueryParam("index", WireMock.equalTo("annotation"))
+            .willReturn(WireMock.aResponse().withBody(UUID.randomUUID().toString()))
         );
     }
 
@@ -163,12 +164,6 @@ public class UserAnnotationAuthorizationTest extends CRUDAuthorizationTest {
     @Override
     protected void when_i_add_domain() {
         UserAnnotation annotation = builder.given_a_not_persisted_user_annotation(this.userAnnotation.getProject());
-        annotation
-            .getSlice()
-            .getBaseSlice()
-            .getUploadedFile()
-            .getImageServer()
-            .setUrl("http://localhost:8888");
         userAnnotationService.add(annotation.toJsonObject());
     }
 

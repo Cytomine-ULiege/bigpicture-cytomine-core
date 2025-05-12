@@ -41,6 +41,7 @@ import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
@@ -60,8 +61,10 @@ import be.cytomine.repository.ontology.UserAnnotationRepository;
 import be.cytomine.utils.JsonObject;
 
 import static be.cytomine.service.middleware.ImageServerService.IMS_API_BASE_PATH;
+import static be.cytomine.service.search.RetrievalService.CBIR_API_BASE_PATH;
 import static be.cytomine.service.utils.SimplifyGeometryServiceTests.getPointMultiplyByGeometriesOrInteriorRings;
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -110,21 +113,44 @@ public class AnnotationDomainResourceTests {
 
     AlgoAnnotation algoAnnotation;
 
-    private static WireMockServer wireMockServer = new WireMockServer(8888);
+    private static WireMockServer wireMockServer;
+
+    private static void setupStub() {
+        /* Simulate call to PIMS */
+        wireMockServer.stubFor(WireMock.post(urlPathMatching(IMS_API_BASE_PATH + "/image/.*/annotation/drawing"))
+            .withRequestBody(WireMock.matching(".*"))
+            .willReturn(aResponse()
+                .withStatus(HttpStatus.OK.value())
+                .withBody(UUID.randomUUID().toString().getBytes())
+            )
+        );
+
+        /* Simulate call to CBIR server */
+        wireMockServer.stubFor(WireMock.post(urlPathEqualTo(CBIR_API_BASE_PATH + "/images"))
+            .withQueryParam("storage", matching(".*"))
+            .withQueryParam("index", equalTo("annotation"))
+            .willReturn(aResponse().withBody(UUID.randomUUID().toString()))
+        );
+
+        wireMockServer.stubFor(WireMock.delete(urlPathMatching(CBIR_API_BASE_PATH + "/images/.*"))
+            .withQueryParam("storage", matching(".*"))
+            .withQueryParam("index", equalTo("annotation"))
+            .willReturn(aResponse().withBody(UUID.randomUUID().toString()))
+        );
+    }
 
     @BeforeAll
     public static void beforeAll() {
+        wireMockServer = new WireMockServer(8888);
         wireMockServer.start();
+
+        setupStub();
     }
 
     @AfterAll
     public static void afterAll() {
-        try {
-            wireMockServer.stop();
-        } catch (Exception e) {}
+        wireMockServer.stop();
     }
-
-
 
     void createAnnotationSet() throws ParseException {
         project = builder.given_a_project();
@@ -1175,12 +1201,6 @@ public class AnnotationDomainResourceTests {
     @Transactional
     public void add_valid_user_annotation() throws Exception {
         UserAnnotation userAnnotation = builder.given_a_not_persisted_user_annotation();
-        userAnnotation
-            .getSlice()
-            .getBaseSlice()
-            .getUploadedFile()
-            .getImageServer()
-            .setUrl("http://localhost:8888");
 
         /* Simulate call to CBIR */
         wireMockServer.stubFor(WireMock.post(urlPathEqualTo("/api/images"))
@@ -1375,13 +1395,6 @@ public class AnnotationDomainResourceTests {
         AnnotationDomain annotation = builder.given_a_not_persisted_user_annotation();
         annotation.setLocation(new WKTReader().read(TestUtils.getResourceFileAsString("dataset/very_big_annotation.txt")));
         assertThat(annotation.getLocation().getNumPoints()).isGreaterThanOrEqualTo(500);
-
-        annotation
-            .getSlice()
-            .getBaseSlice()
-            .getUploadedFile()
-            .getImageServer()
-            .setUrl("http://localhost:8888");
 
         /* Simulate call to CBIR */
         wireMockServer.stubFor(WireMock.post(urlPathEqualTo("/api/images"))

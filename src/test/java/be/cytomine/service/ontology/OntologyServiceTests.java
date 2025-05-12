@@ -49,8 +49,8 @@ import be.cytomine.service.command.TransactionService;
 import be.cytomine.service.project.ProjectService;
 import be.cytomine.utils.CommandResponse;
 
+import static be.cytomine.service.search.RetrievalService.CBIR_API_BASE_PATH;
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
-import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.springframework.security.acls.domain.BasePermission.*;
 
@@ -91,8 +91,8 @@ public class OntologyServiceTests {
 
     private static void setupStub() {
         /* Simulate call to CBIR */
-        wireMockServer.stubFor(WireMock.post(urlPathEqualTo("/api/storages"))
-            .withRequestBody(WireMock.matching(".*"))
+        wireMockServer.stubFor(post(urlPathEqualTo(CBIR_API_BASE_PATH + "/storages"))
+            .withRequestBody(matching(".*"))
             .willReturn(aResponse().withBody(UUID.randomUUID().toString()))
         );
     }

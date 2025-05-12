@@ -30,6 +30,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.domain.Page;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.web.context.request.RequestContextHolder;
@@ -68,8 +69,11 @@ import be.cytomine.utils.JsonObject;
 import be.cytomine.utils.filters.SearchOperation;
 import be.cytomine.utils.filters.SearchParameterEntry;
 
+import static be.cytomine.service.search.RetrievalService.CBIR_API_BASE_PATH;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.delete;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathMatching;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.springframework.security.acls.domain.BasePermission.*;
 
@@ -128,10 +132,13 @@ public class SecUserServiceTests {
 
     private static void setupStub() {
         /* Simulate call to CBIR */
-        wireMockServer.stubFor(WireMock.delete(urlPathMatching("/api/images/.*"))
+        wireMockServer.stubFor(delete(urlPathMatching(CBIR_API_BASE_PATH + "/images/.*"))
             .withQueryParam("storage", WireMock.matching(".*"))
             .withQueryParam("index", WireMock.equalTo("annotation"))
-            .willReturn(aResponse().withBody(UUID.randomUUID().toString()))
+            .willReturn(aResponse()
+                .withStatus(HttpStatus.OK.value())    
+                .withBody(UUID.randomUUID().toString())
+            )
         );
     }
 
@@ -139,7 +146,6 @@ public class SecUserServiceTests {
     public static void beforeAll() {
         wireMockServer = new WireMockServer(8888);
         wireMockServer.start();
-        WireMock.configureFor("localhost", wireMockServer.port());
 
         setupStub();
     }

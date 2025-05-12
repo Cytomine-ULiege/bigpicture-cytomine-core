@@ -2,17 +2,6 @@ package be.cytomine.authorization.project;
 
 import java.util.*;
 
-import org.junit.jupiter.api.*;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.security.acls.domain.BasePermission;
-import org.springframework.security.acls.model.Permission;
-import org.springframework.security.test.context.support.WithMockUser;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.util.*;
-
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.WireMock;
 import org.junit.jupiter.api.*;
@@ -50,8 +39,9 @@ import be.cytomine.service.search.ProjectSearchExtension;
 import be.cytomine.service.security.SecUserService;
 
 import static be.cytomine.domain.project.EditingMode.*;
+import static be.cytomine.service.middleware.ImageServerService.IMS_API_BASE_PATH;
+import static be.cytomine.service.search.RetrievalService.CBIR_API_BASE_PATH;
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
-import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.springframework.security.acls.domain.BasePermission.ADMINISTRATION;
 
@@ -60,6 +50,7 @@ import static org.springframework.security.acls.domain.BasePermission.ADMINISTRA
 @Transactional
 public class ProjectAuthorizationTest extends CRUDAuthorizationTest {
 
+    @Autowired
     private ProjectService projectService;
 
     @Autowired
@@ -97,28 +88,32 @@ public class ProjectAuthorizationTest extends CRUDAuthorizationTest {
     private static WireMockServer wireMockServer;
 
     private static void setupStub() {
-        /* Simulate call to CBIR */
-        wireMockServer.stubFor(WireMock.post(urlPathEqualTo("/api/images"))
-            .withQueryParam("storage", WireMock.matching(".*"))
-            .withQueryParam("index", WireMock.equalTo("annotation"))
-            .willReturn(aResponse().withBody(UUID.randomUUID().toString()))
-        );
-
-        wireMockServer.stubFor(WireMock.delete(urlPathMatching("/api/images/.*"))
-            .withQueryParam("storage", WireMock.matching(".*"))
-            .withQueryParam("index", WireMock.equalTo("annotation"))
-            .willReturn(aResponse().withBody(UUID.randomUUID().toString()))
-        );
-
-        wireMockServer.stubFor(WireMock.post(urlPathEqualTo("/api/storages"))
-            .withRequestBody(WireMock.matching(".*"))
-            .willReturn(aResponse().withBody(UUID.randomUUID().toString()))
-        );
-
         /* Simulate call to PIMS */
-        wireMockServer.stubFor(WireMock.post(urlPathMatching("/image/.*/annotation/drawing"))
+        wireMockServer.stubFor(WireMock.post(urlPathMatching(IMS_API_BASE_PATH + "/image/.*/annotation/drawing"))
             .withRequestBody(WireMock.matching(".*"))
             .willReturn(aResponse().withBody(UUID.randomUUID().toString().getBytes()))
+        );
+
+        /* Simulate call to CBIR */
+        wireMockServer.stubFor(WireMock.post(urlPathEqualTo(CBIR_API_BASE_PATH + "/images"))
+            .withQueryParam("storage", WireMock.matching(".*"))
+            .withQueryParam("index", WireMock.equalTo("annotation"))
+            .willReturn(aResponse().withBody(UUID.randomUUID().toString()))
+        );
+
+        wireMockServer.stubFor(WireMock.delete(urlPathMatching(CBIR_API_BASE_PATH + "/images/.*"))
+            .withQueryParam("storage", WireMock.matching(".*"))
+            .withQueryParam("index", WireMock.equalTo("annotation"))
+            .willReturn(aResponse().withBody(UUID.randomUUID().toString()))
+        );
+
+        wireMockServer.stubFor(WireMock.post(urlPathEqualTo(CBIR_API_BASE_PATH + "/storages"))
+            .withRequestBody(WireMock.matching(".*"))
+            .willReturn(aResponse().withBody(UUID.randomUUID().toString()))
+        );
+
+        wireMockServer.stubFor(delete(urlPathEqualTo(CBIR_API_BASE_PATH + "/storages"))
+            .willReturn(aResponse().withBody(UUID.randomUUID().toString()))
         );
     }
 
@@ -126,7 +121,6 @@ public class ProjectAuthorizationTest extends CRUDAuthorizationTest {
     public static void beforeAll() {
         wireMockServer = new WireMockServer(8888);
         wireMockServer.start();
-        WireMock.configureFor("localhost", wireMockServer.port());
 
         setupStub();
     }
@@ -145,16 +139,6 @@ public class ProjectAuthorizationTest extends CRUDAuthorizationTest {
         }
         project.setMode(CLASSIC);
         builder.persistAndReturn(project);
-    }
-
-    private UserAnnotation setImageServerUrl(UserAnnotation annotation) {
-        annotation
-            .getSlice()
-            .getBaseSlice()
-            .getUploadedFile()
-            .getImageServer()
-            .setUrl("http://localhost:8888");
-        return annotation;
     }
 
     @Test
