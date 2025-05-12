@@ -136,7 +136,8 @@ public class SecUserServiceTests {
             .withQueryParam("storage", WireMock.matching(".*"))
             .withQueryParam("index", WireMock.equalTo("annotation"))
             .willReturn(aResponse()
-                .withStatus(HttpStatus.OK.value())    
+                .withStatus(HttpStatus.OK.value())
+                .withHeader("Content-Type", "application/json")
                 .withBody(UUID.randomUUID().toString())
             )
         );
