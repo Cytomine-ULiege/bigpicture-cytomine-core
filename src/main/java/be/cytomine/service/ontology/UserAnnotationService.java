@@ -43,6 +43,7 @@ import be.cytomine.service.command.TransactionService;
 import be.cytomine.service.image.SliceCoordinatesService;
 import be.cytomine.service.image.SliceInstanceService;
 import be.cytomine.service.meta.PropertyService;
+import be.cytomine.service.search.RetrievalService;
 import be.cytomine.service.security.SecurityACLService;
 import be.cytomine.service.utils.SimplifyGeometryService;
 import be.cytomine.service.utils.ValidateGeometryService;
@@ -60,6 +61,7 @@ import org.springframework.stereotype.Service;
 
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
+
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -132,6 +134,9 @@ public class UserAnnotationService extends ModelService {
 
     @Autowired
     private SharedAnnotationRepository sharedAnnotationRepository;
+
+    @Autowired
+    private RetrievalService retrievalService;
 
     @Override
     public Class currentDomain() {
@@ -389,6 +394,10 @@ public class UserAnnotationService extends ModelService {
     protected void afterAdd(CytomineDomain domain, CommandResponse response) {
         response.getData().put("annotation", response.getData().get("userannotation"));
         response.getData().remove("userannotation");
+
+        /* Index the annotation */
+        AnnotationDomain annotation = (AnnotationDomain) domain;
+        retrievalService.indexAnnotation(annotation);
     }
 
     /**
@@ -486,6 +495,10 @@ public class UserAnnotationService extends ModelService {
         securityACLService.check(domain.container(), READ, currentUser);
         //Check if user is admin, the project mode and if is the owner of the annotation
         securityACLService.checkFullOrRestrictedForOwner(domain, ((UserAnnotation)domain).getUser());
+
+        /* Delete the annotation from the CBIR database */
+        retrievalService.deleteIndex((AnnotationDomain) domain);
+
         Command c = new DeleteCommand(currentUser, transaction);
         return executeCommand(c,domain, null);
     }
