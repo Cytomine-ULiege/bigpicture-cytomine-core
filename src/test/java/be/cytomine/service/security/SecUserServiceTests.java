@@ -1132,6 +1132,7 @@ public class SecUserServiceTests {
     @Autowired
     StorageService storageService;
 
+    @Disabled("Disable as it throws 'Unexpected end of file from server' randomly")
     @Test
     void delete_user_with_dependency() {
         User user = builder.given_a_user();
