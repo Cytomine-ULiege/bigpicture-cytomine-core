@@ -128,7 +128,7 @@ public class SecUserServiceTests {
     @Autowired
     private UserPositionService userPositionService;
 
-    private static WireMockServer wireMockServer;
+    private static WireMockServer wireMockServer = new WireMockServer(8888);
 
     private static void setupStub() {
         /* Simulate call to CBIR */
@@ -145,9 +145,8 @@ public class SecUserServiceTests {
 
     @BeforeAll
     public static void beforeAll() {
-        wireMockServer = new WireMockServer(8888);
         wireMockServer.start();
-        WireMock.configureFor("localhost", wireMockServer.port());
+        WireMock.configureFor("localhost", 8888);
 
         setupStub();
     }
