@@ -147,6 +147,7 @@ public class SecUserServiceTests {
     public static void beforeAll() {
         wireMockServer = new WireMockServer(8888);
         wireMockServer.start();
+        WireMock.configureFor("localhost", wireMockServer.port());
 
         setupStub();
     }
