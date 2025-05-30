@@ -36,7 +36,15 @@ import be.cytomine.service.ontology.UserAnnotationService;
 import be.cytomine.service.project.ProjectRepresentativeUserService;
 import be.cytomine.service.project.ProjectService;
 import be.cytomine.service.search.ProjectSearchExtension;
-import be.cytomine.service.security.SecUserService;
+import be.cytomine.service.security.UserService;
+import be.cytomine.service.security.SecurityACLService;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
+
+
+import java.util.*;
 
 import static be.cytomine.domain.project.EditingMode.*;
 import static be.cytomine.service.middleware.ImageServerService.IMS_API_BASE_PATH;
@@ -57,10 +65,10 @@ public class ProjectAuthorizationTest extends CRUDAuthorizationTest {
     private BasicInstanceBuilder builder;
 
     @Autowired
-    private SecUserService secUserService;
+    private ProjectRepresentativeUserService projectRepresentativeUserService;
 
     @Autowired
-    private ProjectRepresentativeUserService projectRepresentativeUserService;
+    UserService userService;
 
     @Autowired
     private ProjectRepresentativeUserRepository projectRepresentativeUserRepository;
@@ -168,22 +176,22 @@ public class ProjectAuthorizationTest extends CRUDAuthorizationTest {
     @Test
     @WithMockUser(username = SUPERADMIN)
     public void admin_can_add_user_to_project() {
-        expectOK(() -> {secUserService.addUserToProject(builder.given_a_user(), project, true); });
-        expectOK(() -> {secUserService.addUserToProject(builder.given_a_user(), project, false); });
+        expectOK(() -> {userService.addUserToProject(builder.given_a_user(), project, true); });
+        expectOK(() -> {userService.addUserToProject(builder.given_a_user(), project, false); });
     }
 
     @Test
     @WithMockUser(username = USER_ACL_ADMIN)
     public void user_with_admin_rigth_can_manage_user_in_project(){
-        expectOK(() -> {secUserService.addUserToProject(builder.given_a_user(), project, true); });
-        expectOK(() -> {secUserService.addUserToProject(builder.given_a_user(), project, false); });
+        expectOK(() -> {userService.addUserToProject(builder.given_a_user(), project, true); });
+        expectOK(() -> {userService.addUserToProject(builder.given_a_user(), project, false); });
     }
 
     @Test
     @WithMockUser(username = USER_ACL_READ)
     public void user_with_read_acl_cannot_manage_user_in_project(){
-        expectForbidden(() -> {secUserService.addUserToProject(builder.given_a_user(), project, true); });
-        expectForbidden(() -> {secUserService.addUserToProject(builder.given_a_user(), project, false); });
+        expectForbidden(() -> {userService.addUserToProject(builder.given_a_user(), project, true); });
+        expectForbidden(() -> {userService.addUserToProject(builder.given_a_user(), project, false); });
     }
 
     @Test
@@ -193,19 +201,19 @@ public class ProjectAuthorizationTest extends CRUDAuthorizationTest {
         expectOK(() -> {when_i_edit_domain();});
 
         User user = builder.given_a_user();
-        expectOK(() -> {secUserService.addUserToProject(user, project, false); });
-        expectOK(() -> {secUserService.deleteUserFromProject(user, project, false); });
-        expectOK(() -> {secUserService.addUserToProject(user, project, true); });
-        expectOK(() -> {secUserService.deleteUserFromProject(user, project, true); });
+        expectOK(() -> {userService.addUserToProject(user, project, false); });
+        expectOK(() -> {userService.deleteUserFromProject(user, project, false); });
+        expectOK(() -> {userService.addUserToProject(user, project, true); });
+        expectOK(() -> {userService.deleteUserFromProject(user, project, true); });
 
-        expectOK(() -> {secUserService.addUserToProject(user, project, true); });
+        expectOK(() -> {userService.addUserToProject(user, project, true); });
 
         ProjectRepresentativeUser projectRepresentativeUser = builder.given_a_not_persisted_project_representative_user(
                 project, user
         );
 
         // add another representative so that we can delete the first one
-        expectOK(() -> {secUserService.addUserToProject(builder.given_superadmin(), project, false); });
+        expectOK(() -> {userService.addUserToProject(builder.given_superadmin(), project, false); });
         expectOK(() -> {projectRepresentativeUserService.add(builder.given_a_not_persisted_project_representative_user(
                 project, builder.given_superadmin()
         ).toJsonObject());});
@@ -228,12 +236,12 @@ public class ProjectAuthorizationTest extends CRUDAuthorizationTest {
         expectForbidden(() -> {when_i_edit_domain();});
 
         User user = builder.given_a_user();
-        expectForbidden(() -> {secUserService.addUserToProject(user, project, false); });
-        expectForbidden(() -> {secUserService.deleteUserFromProject(user, project, false); });
-        expectForbidden(() -> {secUserService.addUserToProject(user, project, true); });
-        expectForbidden(() -> {secUserService.deleteUserFromProject(user, project, true); });
+        expectForbidden(() -> {userService.addUserToProject(user, project, false); });
+        expectForbidden(() -> {userService.deleteUserFromProject(user, project, false); });
+        expectForbidden(() -> {userService.addUserToProject(user, project, true); });
+        expectForbidden(() -> {userService.deleteUserFromProject(user, project, true); });
 
-        expectForbidden(() -> {secUserService.addUserToProject(user, project, true); });
+        expectForbidden(() -> {userService.addUserToProject(user, project, true); });
 
         ProjectRepresentativeUser projectRepresentativeUser = builder.given_a_not_persisted_project_representative_user(
                 project, user
@@ -536,12 +544,12 @@ public class ProjectAuthorizationTest extends CRUDAuthorizationTest {
         expectOK(() -> {when_i_edit_domain();});
 
         User user = builder.given_a_user();
-        expectOK(() -> {secUserService.addUserToProject(user, project, false); });
-        expectOK(() -> {secUserService.deleteUserFromProject(user, project, false); });
-        expectOK(() -> {secUserService.addUserToProject(user, project, true); });
-        expectOK(() -> {secUserService.deleteUserFromProject(user, project, true); });
+        expectOK(() -> {userService.addUserToProject(user, project, false); });
+        expectOK(() -> {userService.deleteUserFromProject(user, project, false); });
+        expectOK(() -> {userService.addUserToProject(user, project, true); });
+        expectOK(() -> {userService.deleteUserFromProject(user, project, true); });
 
-        expectOK(() -> {secUserService.addUserToProject(user, project, true); });
+        expectOK(() -> {userService.addUserToProject(user, project, true); });
 
         ProjectRepresentativeUser projectRepresentativeUser = builder.given_a_not_persisted_project_representative_user(
                 project, user
@@ -550,7 +558,7 @@ public class ProjectAuthorizationTest extends CRUDAuthorizationTest {
 
 
         // add another representative so that we can delete the first one
-        expectOK(() -> {secUserService.addUserToProject(builder.given_superadmin(), project, false); });
+        expectOK(() -> {userService.addUserToProject(builder.given_superadmin(), project, false); });
         expectOK(() -> {projectRepresentativeUserService.add(builder.given_a_not_persisted_project_representative_user(
                 project, builder.given_superadmin()
         ).toJsonObject());});
@@ -575,12 +583,12 @@ public class ProjectAuthorizationTest extends CRUDAuthorizationTest {
         expectForbidden(() -> {when_i_edit_domain();});
 
         User user = builder.given_a_user();
-        expectForbidden(() -> {secUserService.addUserToProject(user, project, false); });
-        expectForbidden(() -> {secUserService.deleteUserFromProject(user, project, false); });
-        expectForbidden(() -> {secUserService.addUserToProject(user, project, true); });
-        expectForbidden(() -> {secUserService.deleteUserFromProject(user, project, true); });
+        expectForbidden(() -> {userService.addUserToProject(user, project, false); });
+        expectForbidden(() -> {userService.deleteUserFromProject(user, project, false); });
+        expectForbidden(() -> {userService.addUserToProject(user, project, true); });
+        expectForbidden(() -> {userService.deleteUserFromProject(user, project, true); });
 
-        expectForbidden(() -> {secUserService.addUserToProject(user, project, true); });
+        expectForbidden(() -> {userService.addUserToProject(user, project, true); });
 
         ProjectRepresentativeUser projectRepresentativeUser = builder.given_a_not_persisted_project_representative_user(
                 project, user
@@ -883,19 +891,19 @@ public class ProjectAuthorizationTest extends CRUDAuthorizationTest {
         expectOK(() -> {when_i_edit_domain();});
 
         User user = builder.given_a_user();
-        expectOK(() -> {secUserService.addUserToProject(user, project, false); });
-        expectOK(() -> {secUserService.deleteUserFromProject(user, project, false); });
-        expectOK(() -> {secUserService.addUserToProject(user, project, true); });
-        expectOK(() -> {secUserService.deleteUserFromProject(user, project, true); });
+        expectOK(() -> {userService.addUserToProject(user, project, false); });
+        expectOK(() -> {userService.deleteUserFromProject(user, project, false); });
+        expectOK(() -> {userService.addUserToProject(user, project, true); });
+        expectOK(() -> {userService.deleteUserFromProject(user, project, true); });
 
-        expectOK(() -> {secUserService.addUserToProject(user, project, true); });
+        expectOK(() -> {userService.addUserToProject(user, project, true); });
 
         ProjectRepresentativeUser projectRepresentativeUser = builder.given_a_not_persisted_project_representative_user(
                 project, user
         );
 
         // add another representative so that we can delete the first one
-        expectOK(() -> {secUserService.addUserToProject(builder.given_superadmin(), project, false); });
+        expectOK(() -> {userService.addUserToProject(builder.given_superadmin(), project, false); });
         expectOK(() -> {projectRepresentativeUserService.add(builder.given_a_not_persisted_project_representative_user(
                 project, builder.given_superadmin()
         ).toJsonObject());});
@@ -920,12 +928,12 @@ public class ProjectAuthorizationTest extends CRUDAuthorizationTest {
         expectForbidden(() -> {when_i_edit_domain();});
 
         User user = builder.given_a_user();
-        expectForbidden(() -> {secUserService.addUserToProject(user, project, false); });
-        expectForbidden(() -> {secUserService.deleteUserFromProject(user, project, false); });
-        expectForbidden(() -> {secUserService.addUserToProject(user, project, true); });
-        expectForbidden(() -> {secUserService.deleteUserFromProject(user, project, true); });
+        expectForbidden(() -> {userService.addUserToProject(user, project, false); });
+        expectForbidden(() -> {userService.deleteUserFromProject(user, project, false); });
+        expectForbidden(() -> {userService.addUserToProject(user, project, true); });
+        expectForbidden(() -> {userService.deleteUserFromProject(user, project, true); });
 
-        expectForbidden(() -> {secUserService.addUserToProject(user, project, true); });
+        expectForbidden(() -> {userService.addUserToProject(user, project, true); });
 
         ProjectRepresentativeUser projectRepresentativeUser = builder.given_a_not_persisted_project_representative_user(
                 project, user

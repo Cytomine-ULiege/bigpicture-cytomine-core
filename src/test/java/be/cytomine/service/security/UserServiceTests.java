@@ -24,14 +24,12 @@ import com.github.tomakehurst.wiremock.client.WireMock;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import org.apache.commons.lang3.time.DateUtils;
-import org.assertj.core.api.AssertionsForClassTypes;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.web.context.request.RequestContextHolder;
 
@@ -39,35 +37,25 @@ import be.cytomine.BasicInstanceBuilder;
 import be.cytomine.CytomineCoreApplication;
 import be.cytomine.domain.image.ImageInstance;
 import be.cytomine.domain.image.SliceInstance;
-import be.cytomine.domain.image.UploadedFile;
 import be.cytomine.domain.image.server.Storage;
-import be.cytomine.domain.ontology.AnnotationTerm;
-import be.cytomine.domain.ontology.Ontology;
-import be.cytomine.domain.ontology.ReviewedAnnotation;
-import be.cytomine.domain.ontology.UserAnnotation;
 import be.cytomine.domain.project.Project;
-import be.cytomine.domain.project.ProjectDefaultLayer;
-import be.cytomine.domain.project.ProjectRepresentativeUser;
-import be.cytomine.domain.security.SecUser;
 import be.cytomine.domain.security.User;
 import be.cytomine.domain.social.*;
 import be.cytomine.dto.auth.AuthInformation;
 import be.cytomine.dto.image.AreaDTO;
-import be.cytomine.exceptions.AlreadyExistException;
-import be.cytomine.exceptions.WrongArgumentException;
 import be.cytomine.repositorynosql.social.*;
 import be.cytomine.service.PermissionService;
 import be.cytomine.service.database.SequenceService;
-import be.cytomine.service.image.server.StorageService;
 import be.cytomine.service.search.UserSearchExtension;
 import be.cytomine.service.social.ImageConsultationService;
 import be.cytomine.service.social.ProjectConnectionService;
 import be.cytomine.service.social.UserPositionService;
 import be.cytomine.service.social.UserPositionServiceTests;
-import be.cytomine.utils.CommandResponse;
 import be.cytomine.utils.JsonObject;
 import be.cytomine.utils.filters.SearchOperation;
 import be.cytomine.utils.filters.SearchParameterEntry;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import static be.cytomine.service.search.RetrievalService.CBIR_API_BASE_PATH;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
@@ -79,12 +67,12 @@ import static org.springframework.security.acls.domain.BasePermission.*;
 
 @SpringBootTest(classes = CytomineCoreApplication.class)
 @AutoConfigureMockMvc
-@WithMockUser(authorities = "ROLE_SUPER_ADMIN", username = "superadmin")
+@WithMockUser(username = "superadmin")
 @Transactional
-public class SecUserServiceTests {
+public class UserServiceTests {
 
     @Autowired
-    private SecUserService secUserService;
+    UserService userService;
 
     @Autowired
     private BasicInstanceBuilder builder;
@@ -172,11 +160,11 @@ public class SecUserServiceTests {
         return connection;
     }
 
-    PersistentImageConsultation given_a_persistent_image_consultation(SecUser user, ImageInstance imageInstance, Date created) {
+    PersistentImageConsultation given_a_persistent_image_consultation(User user, ImageInstance imageInstance, Date created) {
         return imageConsultationService.add(user, imageInstance.getId(), "xxx", "mode", created);
     }
 
-    PersistentConnection given_a_last_connection(SecUser user, Long idProject, Date date) {
+    PersistentConnection given_a_last_connection(User user, Long idProject, Date date) {
             LastConnection connection = new LastConnection();
             connection.setId(sequenceService.generateID());
             connection.setUser(user.getId());
@@ -195,50 +183,35 @@ public class SecUserServiceTests {
         return connectionPersist;
     }
 
-
-    @Test
-    void find_secuser_with_success() {
-        User user = builder.given_a_user();
-        assertThat(secUserService.find(user.getId())).isPresent().contains(user);
-    }
-
     @Test
     void find_unexisting_user_return_empty() {
-        assertThat(secUserService.find(0L)).isEmpty();
+        assertThat(userService.find(0L)).isEmpty();
     }
 
     @Test
     void find_user_with_success() {
         User user = builder.given_a_user();
-        assertThat(secUserService.findUser(user.getId())).isPresent().contains(user);
+        assertThat(userService.findUser(user.getId())).isPresent().contains(user);
     }
 
     @Test
     void find_user_by_username() {
         User user = builder.given_a_user();
-        assertThat(secUserService.findByUsername(user.getUsername())).isPresent().contains(user);
-        assertThat(secUserService.findByUsername(user.getUsername().toUpperCase(Locale.ROOT))).isPresent().contains(user);
-        assertThat(secUserService.findByUsername(user.getUsername().toLowerCase(Locale.ROOT))).isPresent().contains(user);
-    }
-
-    @Test
-    void find_user_by_email() {
-        User user = builder.given_a_user();
-        assertThat(secUserService.findByEmail(user.getEmail())).isPresent().contains(user);
-        assertThat(secUserService.findByEmail(user.getEmail().toUpperCase(Locale.ROOT))).isPresent().contains(user);
-        assertThat(secUserService.findByEmail(user.getEmail().toLowerCase(Locale.ROOT))).isPresent().contains(user);
+        assertThat(userService.findByUsername(user.getUsername())).isPresent().contains(user);
+        assertThat(userService.findByUsername(user.getUsername().toUpperCase(Locale.ROOT))).isPresent().contains(user);
+        assertThat(userService.findByUsername(user.getUsername().toLowerCase(Locale.ROOT))).isPresent().contains(user);
     }
 
     @Test
     void find_user_by_public_key() {
         User user = builder.given_a_user();
-        assertThat(secUserService.findByPublicKey(user.getPublicKey())).isPresent().contains(user);
+        assertThat(userService.findByPublicKey(user.getPublicKey())).isPresent().contains(user);
     }
 
     @Test
     void get_auth_roles_for_user() {
         User user = builder.given_a_user();
-        AuthInformation authInformation = secUserService.getAuthenticationRoles(user);
+        AuthInformation authInformation = userService.getAuthenticationRoles(user);
         assertThat(authInformation.getAdmin()).isFalse();
         assertThat(authInformation.getUser()).isTrue();
         assertThat(authInformation.getGuest()).isFalse();
@@ -252,7 +225,7 @@ public class SecUserServiceTests {
     @Test
     void get_auth_roles_for_guest() {
         User user = builder.given_a_guest();
-        AuthInformation authInformation = secUserService.getAuthenticationRoles(user);
+        AuthInformation authInformation = userService.getAuthenticationRoles(user);
         assertThat(authInformation.getAdmin()).isFalse();
         assertThat(authInformation.getUser()).isFalse();
         assertThat(authInformation.getGuest()).isTrue();
@@ -265,7 +238,7 @@ public class SecUserServiceTests {
     @Test
     void get_auth_roles_for_superamdin() {
         User user = builder.given_superadmin();
-        AuthInformation authInformation = secUserService.getAuthenticationRoles(user);
+        AuthInformation authInformation = userService.getAuthenticationRoles(user);
         assertThat(authInformation.getAdmin()).isTrue();
         assertThat(authInformation.getUser()).isFalse();
         assertThat(authInformation.getGuest()).isFalse();
@@ -278,7 +251,7 @@ public class SecUserServiceTests {
     @Test
     void get_auth_roles_for_admin() {
         User user = builder.given_a_admin();
-        AuthInformation authInformation = secUserService.getAuthenticationRoles(user);
+        AuthInformation authInformation = userService.getAuthenticationRoles(user);
         assertThat(authInformation.getAdmin()).isTrue();
         assertThat(authInformation.getUser()).isFalse();
         assertThat(authInformation.getGuest()).isFalse();
@@ -291,10 +264,7 @@ public class SecUserServiceTests {
 
     @Test
     void list_users_with_no_filters_no_extension() {
-
-        UserSearchExtension userSearchExtension = new UserSearchExtension();
-
-        Page<Map<String, Object>> list = secUserService.list(userSearchExtension, new ArrayList<>(), "created", "desc", 0L, 0L);
+        Page<Map<String, Object>> list = userService.list(new ArrayList<>(), "created", "desc", 0L, 0L);
 
         assertThat(list.getTotalElements()).isGreaterThanOrEqualTo(1);
         assertThat(list.getContent().stream()
@@ -305,22 +275,19 @@ public class SecUserServiceTests {
 
     @Test
     void list_users_with_with_multisearch_filters() {
-
-        UserSearchExtension userSearchExtension = new UserSearchExtension();
-
-        Page<Map<String, Object>> list = secUserService.list(userSearchExtension,
+        Page<Map<String, Object>> list = userService.list(
                 new ArrayList<>(List.of(new SearchParameterEntry("fullName", SearchOperation.like, "superad"))), "created", "desc", 0L, 0L);
 
         assertThat(list.getContent().stream()
                 .map(x -> x.get("id"))).contains(builder.given_superadmin().getId());
 
-        list = secUserService.list(userSearchExtension,
-                new ArrayList<>(List.of(new SearchParameterEntry("fullName", SearchOperation.like, builder.given_superadmin().getEmail()))), "created", "desc", 0L, 0L);
+        list = userService.list(
+                new ArrayList<>(List.of(new SearchParameterEntry("fullName", SearchOperation.like, builder.given_superadmin().getName()))), "created", "desc", 0L, 0L);
 
         assertThat(list.getContent().stream()
                 .map(x -> x.get("id"))).contains(builder.given_superadmin().getId());
 
-        list = secUserService.list(userSearchExtension,
+        list = userService.list(
                 new ArrayList<>(List.of(new SearchParameterEntry("fullName", SearchOperation.like, "johndoe@example.com"))), "created", "desc", 0L, 0L);
 
         assertThat(list.getContent().stream()
@@ -328,34 +295,18 @@ public class SecUserServiceTests {
     }
 
     @Test
-    void list_users_with_roles() {
-
-        UserSearchExtension userSearchExtension = new UserSearchExtension();
-
-        userSearchExtension.setWithRoles(true);
-        Page<Map<String, Object>> list = secUserService.list(userSearchExtension,
-                new ArrayList<>(List.of(new SearchParameterEntry("fullName", SearchOperation.like, "superadmin"))), "role", "asc", 0L, 0L);
-        assertThat(list.getContent()).hasSize(1);
-        assertThat(list.getContent().get(0).get("id")).isEqualTo(builder.given_superadmin().getId());
-        assertThat(list.getContent().get(0).get("role")).isEqualTo("ROLE_SUPER_ADMIN");
-        assertThat(list.getContent().get(0).get("algo")).isEqualTo(false);
-        // FAIL because we get superadminjob too. It should not be return as we don't return result with job_id
-    }
-
-
-    @Test
     void list_users_with_sort_username() {
 
         User user1 = builder.given_a_user("list_users_with_sort_username1");
         User user2 = builder.given_a_user("list_users_with_sort_username2");
 
-        Page<Map<String, Object>> list = secUserService.list(new UserSearchExtension(),
+        Page<Map<String, Object>> list = userService.list(
                 new ArrayList<>(List.of(new SearchParameterEntry("fullName", SearchOperation.like, "list_users_with_sort_username"))), "username", "asc", 0L, 0L);
         assertThat(list.getContent()).hasSize(2);
         assertThat(list.getContent().get(0).get("username")).isEqualTo(user1.getUsername());
         assertThat(list.getContent().get(1).get("username")).isEqualTo(user2.getUsername());
 
-        list = secUserService.list(new UserSearchExtension(),
+        list = userService.list(
                 new ArrayList<>(List.of(new SearchParameterEntry("fullName", SearchOperation.like, "list_users_with_sort_username"))), "username", "desc", 0L, 0L);
         assertThat(list.getContent()).hasSize(2);
         assertThat(list.getContent().get(0).get("username")).isEqualTo(user2.getUsername());
@@ -372,7 +323,7 @@ public class SecUserServiceTests {
         User user5 = builder.given_a_user("list_users_with_page5");
 
 
-        Page<Map<String, Object>> list = secUserService.list(new UserSearchExtension(),
+        Page<Map<String, Object>> list = userService.list(
                 new ArrayList<>(List.of(new SearchParameterEntry("fullName", SearchOperation.like, "list_users_with_page"))), "username", "asc", 0L, 0L);
         assertThat(list.getContent()).hasSize(5);
         assertThat(list.getTotalElements()).isEqualTo(5);
@@ -382,7 +333,7 @@ public class SecUserServiceTests {
         assertThat(list.getContent().get(3).get("username")).isEqualTo(user4.getUsername());
         assertThat(list.getContent().get(4).get("username")).isEqualTo(user5.getUsername());
 
-        list = secUserService.list(new UserSearchExtension(),
+        list = userService.list(
                 new ArrayList<>(List.of(new SearchParameterEntry("fullName", SearchOperation.like, "list_users_with_page"))), "username", "asc", 3L, 0L);
         assertThat(list.getContent()).hasSize(3);
         assertThat(list.getTotalElements()).isEqualTo(5);
@@ -390,7 +341,7 @@ public class SecUserServiceTests {
         assertThat(list.getContent().get(1).get("username")).isEqualTo(user2.getUsername());
         assertThat(list.getContent().get(2).get("username")).isEqualTo(user3.getUsername());
 
-        list = secUserService.list(new UserSearchExtension(),
+        list = userService.list(
                 new ArrayList<>(List.of(new SearchParameterEntry("fullName", SearchOperation.like, "list_users_with_page"))), "username", "asc", 4L, 2L);
         assertThat(list.getContent()).hasSize(3);
         assertThat(list.getTotalElements()).isEqualTo(5);
@@ -398,13 +349,13 @@ public class SecUserServiceTests {
         assertThat(list.getContent().get(1).get("username")).isEqualTo(user4.getUsername());
         assertThat(list.getContent().get(2).get("username")).isEqualTo(user5.getUsername());
 
-        list = secUserService.list(new UserSearchExtension(),
+        list = userService.list(
                 new ArrayList<>(List.of(new SearchParameterEntry("fullName", SearchOperation.like, "list_users_with_page"))), "username", "asc", 4L, 4L);
         assertThat(list.getContent()).hasSize(1);
         assertThat(list.getTotalElements()).isEqualTo(5);
         assertThat(list.getContent().get(0).get("username")).isEqualTo(user5.getUsername());
 
-        list = secUserService.list(new UserSearchExtension(),
+        list = userService.list(
                 new ArrayList<>(List.of(new SearchParameterEntry("fullName", SearchOperation.like, "list_users_with_page"))), "username", "asc", 5L, 6L);
         assertThat(list.getContent()).hasSize(0);
         assertThat(list.getTotalElements()).isEqualTo(5);
@@ -429,25 +380,25 @@ public class SecUserServiceTests {
 
         List<SearchParameterEntry> searchParameterEntries = new ArrayList<>();
 
-        Page<JsonObject> page = secUserService.listUsersByProject(projectWhereUserIsManager, new ArrayList<>(), "id", "desc", 0L, 0L);
+        Page<JsonObject> page = userService.listUsersByProject(projectWhereUserIsManager, new ArrayList<>(), "id", "desc", 0L, 0L);
         assertThat(page.getTotalElements()).isEqualTo(1);
         assertThat(page.getContent().stream().map(x -> x.get("id")).collect(Collectors.toList())).contains(user.getId());
         assertThat(page.getContent().get(0).get("role")).isEqualTo("manager");
         assertThat(page.getContent().stream().map(x -> x.get("id")).collect(Collectors.toList())).doesNotContain(anotherUser.getId());
 
-        page = secUserService.listUsersByProject(projectWhereUserIsContributor, new ArrayList<>(), "id", "desc", 0L, 0L);
+        page = userService.listUsersByProject(projectWhereUserIsContributor, new ArrayList<>(), "id", "desc", 0L, 0L);
         assertThat(page.getTotalElements()).isEqualTo(1);
         assertThat(page.getContent().stream().map(x -> x.get("id")).collect(Collectors.toList())).contains(user.getId());
         assertThat(page.getContent().get(0).get("role")).isEqualTo("contributor");
         assertThat(page.getContent().stream().map(x -> x.get("id")).collect(Collectors.toList())).doesNotContain(anotherUser.getId());
 
-        page = secUserService.listUsersByProject(projectWhereUserIsMissing, new ArrayList<>(), "id", "desc", 0L, 0L);
+        page = userService.listUsersByProject(projectWhereUserIsMissing, new ArrayList<>(), "id", "desc", 0L, 0L);
         assertThat(page.getTotalElements()).isEqualTo(1);
         assertThat(page.getContent().stream().map(x -> x.get("id")).collect(Collectors.toList())).contains(anotherUser.getId());
         assertThat(page.getContent().get(0).get("role")).isEqualTo("contributor");
         assertThat(page.getContent().stream().map(x -> x.get("id")).collect(Collectors.toList())).doesNotContain(user.getId());
 
-        page = secUserService.listUsersByProject(projectWithTwoUsers, new ArrayList<>(), "id", "desc", 0L, 0L);
+        page = userService.listUsersByProject(projectWithTwoUsers, new ArrayList<>(), "id", "desc", 0L, 0L);
         assertThat(page.getTotalElements()).isEqualTo(2);
         assertThat(page.getContent().stream().map(x -> x.get("id")).collect(Collectors.toList())).contains(anotherUser.getId());
         assertThat(page.getContent().stream().map(x -> x.get("id")).collect(Collectors.toList())).contains(user.getId());
@@ -472,25 +423,25 @@ public class SecUserServiceTests {
 
         List<SearchParameterEntry> searchParameterEntries = new ArrayList<>();
 
-        Page<JsonObject> page = secUserService.listUsersExtendedByProject(projectWhereUserIsManager, new UserSearchExtension(), new ArrayList<>(), "id", "desc", 0L, 0L);
+        Page<JsonObject> page = userService.listUsersExtendedByProject(projectWhereUserIsManager, new UserSearchExtension(), new ArrayList<>(), "id", "desc", 0L, 0L);
         assertThat(page.getTotalElements()).isEqualTo(1);
         assertThat(page.getContent().stream().map(x -> x.get("id")).collect(Collectors.toList())).contains(user.getId());
         assertThat(page.getContent().get(0).get("role")).isEqualTo("manager");
         assertThat(page.getContent().stream().map(x -> x.get("id")).collect(Collectors.toList())).doesNotContain(anotherUser.getId());
 
-        page = secUserService.listUsersExtendedByProject(projectWhereUserIsContributor, new UserSearchExtension(), new ArrayList<>(), "id", "desc", 0L, 0L);
+        page = userService.listUsersExtendedByProject(projectWhereUserIsContributor, new UserSearchExtension(), new ArrayList<>(), "id", "desc", 0L, 0L);
         assertThat(page.getTotalElements()).isEqualTo(1);
         assertThat(page.getContent().stream().map(x -> x.get("id")).collect(Collectors.toList())).contains(user.getId());
         assertThat(page.getContent().get(0).get("role")).isEqualTo("contributor");
         assertThat(page.getContent().stream().map(x -> x.get("id")).collect(Collectors.toList())).doesNotContain(anotherUser.getId());
 
-        page = secUserService.listUsersExtendedByProject(projectWhereUserIsMissing, new UserSearchExtension(), new ArrayList<>(), "id", "desc", 0L, 0L);
+        page = userService.listUsersExtendedByProject(projectWhereUserIsMissing, new UserSearchExtension(), new ArrayList<>(), "id", "desc", 0L, 0L);
         assertThat(page.getTotalElements()).isEqualTo(1);
         assertThat(page.getContent().stream().map(x -> x.get("id")).collect(Collectors.toList())).contains(anotherUser.getId());
         assertThat(page.getContent().get(0).get("role")).isEqualTo("contributor");
         assertThat(page.getContent().stream().map(x -> x.get("id")).collect(Collectors.toList())).doesNotContain(user.getId());
 
-        page = secUserService.listUsersExtendedByProject(projectWithTwoUsers, new UserSearchExtension(), new ArrayList<>(), "id", "desc", 0L, 0L);
+        page = userService.listUsersExtendedByProject(projectWithTwoUsers, new UserSearchExtension(), new ArrayList<>(), "id", "desc", 0L, 0L);
         assertThat(page.getTotalElements()).isEqualTo(2);
         assertThat(page.getContent().stream().map(x -> x.get("id")).collect(Collectors.toList())).contains(anotherUser.getId());
         assertThat(page.getContent().stream().map(x -> x.get("id")).collect(Collectors.toList())).contains(user.getId());
@@ -517,7 +468,7 @@ public class SecUserServiceTests {
 
         UserSearchExtension userSearchExtension = new UserSearchExtension();
         userSearchExtension.setWithLastImage(true);
-        Page<JsonObject> page = secUserService.listUsersExtendedByProject(
+        Page<JsonObject> page = userService.listUsersExtendedByProject(
                 project, userSearchExtension, new ArrayList<>(), "lastImageName", "desc", 0L, 0L);
         assertThat(page.getTotalElements()).isEqualTo(3);
         assertThat(page.getContent().stream().map(x -> x.getJSONAttrLong("id"))).contains(userWhoHasOpenImage.getId(), userWhoHasOpenImageAfter.getId());
@@ -542,7 +493,7 @@ public class SecUserServiceTests {
 
         UserSearchExtension userSearchExtension = new UserSearchExtension();
         userSearchExtension.setWithLastConnection(true);
-        Page<JsonObject> page = secUserService.listUsersExtendedByProject(
+        Page<JsonObject> page = userService.listUsersExtendedByProject(
                 project, userSearchExtension, new ArrayList<>(), "lastConnection", "desc", 0L, 0L);
         System.out.println(page);
         System.out.println(page.getContent());
@@ -554,7 +505,7 @@ public class SecUserServiceTests {
         assertThat(page.getContent().get(2).getJSONAttrLong("id")).isEqualTo(userNeverOpenProject.getId());
         assertThat(page.getContent().get(2).getJSONAttrStr("lastImage")).isNull();
 
-        page = secUserService.listUsersExtendedByProject(
+        page = userService.listUsersExtendedByProject(
                 project, userSearchExtension, new ArrayList<>(), "lastConnection", "asc", 0L, 0L);
         System.out.println(page);
         assertThat(page.getTotalElements()).isEqualTo(3);
@@ -585,7 +536,7 @@ public class SecUserServiceTests {
 
         UserSearchExtension userSearchExtension = new UserSearchExtension();
         userSearchExtension.setWithNumberConnections(true);
-        Page<JsonObject> page = secUserService.listUsersExtendedByProject(
+        Page<JsonObject> page = userService.listUsersExtendedByProject(
                 project, userSearchExtension, new ArrayList<>(), "frequency", "desc", 0L, 0L);
         System.out.println(page);
         assertThat(page.getTotalElements()).isEqualTo(3);
@@ -596,7 +547,7 @@ public class SecUserServiceTests {
         assertThat(page.getContent().get(2).getJSONAttrLong("id")).isEqualTo(userNeverOpenProject.getId());
         assertThat(page.getContent().get(2).getJSONAttrInteger("numberConnections")).isEqualTo(0);
 
-        page = secUserService.listUsersExtendedByProject(
+        page = userService.listUsersExtendedByProject(
                 project, userSearchExtension, new ArrayList<>(), "frequency", "asc", 0L, 0L);
         assertThat(page.getTotalElements()).isEqualTo(3);
         assertThat(page.getContent().get(0).getJSONAttrLong("id")).isEqualTo(userNeverOpenProject.getId());
@@ -624,9 +575,9 @@ public class SecUserServiceTests {
         builder.addUserToProject(projectWhereUserIsMissing, anotherUser.getUsername(), WRITE);
         builder.addUserToProject(projectWithTwoUsers, anotherUser.getUsername(), WRITE);
 
-        assertThat(secUserService.listAdmins(projectWhereUserIsManager))
+        assertThat(userService.listAdmins(projectWhereUserIsManager))
                 .contains(user).doesNotContain(anotherUser);
-        assertThat(secUserService.listAdmins(projectWhereUserIsContributor))
+        assertThat(userService.listAdmins(projectWhereUserIsContributor))
                 .doesNotContain(user);
     }
 
@@ -647,33 +598,9 @@ public class SecUserServiceTests {
         builder.addUserToProject(projectWhereUserIsMissing, anotherUser.getUsername(), WRITE);
         builder.addUserToProject(projectWithTwoUsers, anotherUser.getUsername(), WRITE);
 
-        assertThat(secUserService.listUsers(projectWhereUserIsManager)).contains(user).doesNotContain(anotherUser);
-        assertThat(secUserService.listUsers(projectWhereUserIsContributor)).contains(user).doesNotContain(anotherUser);
-        assertThat(secUserService.listUsers(projectWithTwoUsers)).contains(user, anotherUser);
-    }
-
-    @Autowired
-    PasswordEncoder passwordEncoder;
-
-    @Test
-    void change_password() {
-        User user = builder.given_a_user();
-        user.setPassword(passwordEncoder.encode("oldPassword"));
-        builder.persistAndReturn(user);
-
-        secUserService.changeUserPassword(user, "newPassword");
-
-        assertThat(passwordEncoder.matches("newPassword", user.getPassword())).isTrue();
-    }
-
-    @Test
-    void check_password() {
-        User user = builder.given_a_user();
-        user.setPassword(passwordEncoder.encode("newPassword"));
-        builder.persistAndReturn(user);
-
-        assertThat(secUserService.isUserPassword(user, "newPassword")).isTrue();
-        assertThat(secUserService.isUserPassword(user, "badPassword")).isFalse();
+        assertThat(userService.listUsers(projectWhereUserIsManager)).contains(user).doesNotContain(anotherUser);
+        assertThat(userService.listUsers(projectWhereUserIsContributor)).contains(user).doesNotContain(anotherUser);
+        assertThat(userService.listUsers(projectWithTwoUsers)).contains(user, anotherUser);
     }
 
     @Test
@@ -683,7 +610,7 @@ public class SecUserServiceTests {
         Project projectWhereUserIsManager = builder.given_a_project();
         builder.addUserToProject(projectWhereUserIsManager, "superadmin", ADMINISTRATION);
 
-        assertThat(secUserService.findCreator(projectWhereUserIsManager)).contains(user);
+        assertThat(userService.findCreator(projectWhereUserIsManager)).contains(user);
     }
 
     @Test
@@ -696,9 +623,9 @@ public class SecUserServiceTests {
         builder.addUserToProject(projectWhereUserIsManager, "superadmin", ADMINISTRATION);
         builder.addUserToProject(projectWhereUserIsContributor, "superadmin", WRITE);
 
-        assertThat(secUserService.listUsers(projectWhereUserIsManager.getOntology()))
+        assertThat(userService.listUsers(projectWhereUserIsManager.getOntology()))
                 .contains(user);
-        assertThat(secUserService.listUsers(projectWhereUserIsContributor.getOntology()))
+        assertThat(userService.listUsers(projectWhereUserIsContributor.getOntology()))
                 .contains(user);
 
     }
@@ -707,7 +634,7 @@ public class SecUserServiceTests {
     void list_storage_users() {
         Storage storage = builder.given_a_storage(builder.given_superadmin());
 
-        assertThat(secUserService.listUsers(storage))
+        assertThat(userService.listUsers(storage))
                 .contains(builder.given_superadmin());
 
     }
@@ -720,49 +647,9 @@ public class SecUserServiceTests {
 
         builder.addUserToProject(project, "superadmin", WRITE);
 
-        assertThat(secUserService.listAll(project))
+        assertThat(userService.listAll(project))
                 .contains(user);
     }
-
-    @Test
-    void lock_user() {
-       User user = builder.given_a_user();
-
-       assertThat(user.getEnabled()).isTrue();
-       secUserService.lock(user);
-        assertThat(user.getEnabled()).isFalse();
-    }
-
-    @Test
-    void lock_user_already_locked() {
-        User user = builder.given_a_user();
-        user.setEnabled(false);
-
-        Assertions.assertThrows(WrongArgumentException.class, () -> {
-            secUserService.lock(user);
-        });
-    }
-
-    @Test
-    void unlock_user() {
-        User user = builder.given_a_user();
-        user.setEnabled(false);
-
-        assertThat(user.getEnabled()).isFalse();
-        secUserService.unlock(user);
-        assertThat(user.getEnabled()).isTrue();
-    }
-
-    @Test
-    void unlock_user_already_unlocked() {
-        User user = builder.given_a_user();
-        user.setEnabled(true);
-
-        Assertions.assertThrows(WrongArgumentException.class, () -> {
-            secUserService.unlock(user);
-        });
-    }
-
 
     @Test
     void list_layers() {
@@ -775,7 +662,7 @@ public class SecUserServiceTests {
         builder.addUserToProject(project, user.getUsername(), WRITE);
         builder.addUserToProject(project, anotherUserInProject.getUsername(), WRITE);
 
-        assertThat(secUserService.listLayers(project, builder.given_an_image_instance(project)).stream().map(x -> x.getJSONAttrLong("id")))
+        assertThat(userService.listLayers(project, builder.given_an_image_instance(project)).stream().map(x -> x.getJSONAttrLong("id")))
                 .contains(user.getId(), anotherUserInProject.getId())
                 .doesNotContain(anotherUserNotInProject.getId());
     }
@@ -792,7 +679,7 @@ public class SecUserServiceTests {
         builder.addUserToProject(project, user.getUsername(), WRITE);
         builder.addUserToProject(project, adminInProject.getUsername(), ADMINISTRATION);
 
-        assertThat(secUserService.listLayers(project, builder.given_an_image_instance(project)).stream().map(x -> x.getJSONAttrLong("id")))
+        assertThat(userService.listLayers(project, builder.given_an_image_instance(project)).stream().map(x -> x.getJSONAttrLong("id")))
                 .hasSize(1)
                 .contains(user.getId())
                 .doesNotContain(adminInProject.getId());
@@ -810,7 +697,7 @@ public class SecUserServiceTests {
         builder.addUserToProject(project, user.getUsername(), WRITE);
         builder.addUserToProject(project, userInProject.getUsername(), WRITE);
 
-        assertThat(secUserService.listLayers(project, builder.given_an_image_instance(project)).stream().map(x -> x.getJSONAttrLong("id")))
+        assertThat(userService.listLayers(project, builder.given_an_image_instance(project)).stream().map(x -> x.getJSONAttrLong("id")))
                 .hasSize(1)
                 .contains(user.getId())
                 .doesNotContain(userInProject.getId());
@@ -828,7 +715,7 @@ public class SecUserServiceTests {
         builder.addUserToProject(project, user.getUsername(), ADMINISTRATION);
         builder.addUserToProject(project, userInProject.getUsername(), WRITE);
 
-        assertThat(secUserService.listLayers(project, builder.given_an_image_instance(project)).stream().map(x -> x.getJSONAttrLong("id")))
+        assertThat(userService.listLayers(project, builder.given_an_image_instance(project)).stream().map(x -> x.getJSONAttrLong("id")))
                 .hasSize(2)
                 .contains(user.getId(), userInProject.getId());
     }
@@ -838,10 +725,10 @@ public class SecUserServiceTests {
         User userOnline = builder.given_default_user();
         User userOffline = builder.given_a_user();
 
-        assertThat(secUserService.getAllOnlineUsers()).isEmpty();
+        assertThat(userService.getAllOnlineUsers()).isEmpty();
         given_a_last_connection(userOnline, null, new Date());
 
-        assertThat(secUserService.getAllOnlineUsers()).contains(userOnline)
+        assertThat(userService.getAllOnlineUsers()).contains(userOnline)
                 .doesNotContain(userOffline);
     }
 
@@ -859,9 +746,9 @@ public class SecUserServiceTests {
         given_a_last_connection(userOnlineButOnDifferentProject, anotherProject.getId(), DateUtils.addSeconds(new Date(), -10));
 
 
-        assertThat(secUserService.getAllOnlineUserIds(project)).contains(userOnline.getId())
+        assertThat(userService.getAllOnlineUserIds(project)).contains(userOnline.getId())
                 .doesNotContain(userOnlineButOnDifferentProject.getId(), userOffline.getId());
-        assertThat(secUserService.getAllOnlineUsers(project)).contains(userOnline)
+        assertThat(userService.getAllOnlineUsers(project)).contains(userOnline)
                 .doesNotContain(userOnlineButOnDifferentProject, userOffline);
     }
 
@@ -877,7 +764,7 @@ public class SecUserServiceTests {
         builder.addUserToProject(project, user.getUsername(), READ);
         builder.addUserToProject(project, userFriend.getUsername(), READ);
 
-        assertThat(secUserService.getAllFriendsUsers(user)).contains(userFriend)
+        assertThat(userService.getAllFriendsUsers(user)).contains(userFriend)
                 .doesNotContain(userNotFriend);
     }
 
@@ -896,7 +783,7 @@ public class SecUserServiceTests {
         given_a_last_connection(userFriendOffline, project.getId(), DateUtils.addDays(new Date(), -15));
         given_a_last_connection(userFriendOnline, project.getId(), DateUtils.addSeconds(new Date(), -15));
 
-        assertThat(secUserService.getAllFriendsUsersOnline(user)).contains(userFriendOnline)
+        assertThat(userService.getAllFriendsUsersOnline(user)).contains(userFriendOnline)
                 .doesNotContain(userFriendOffline);
     }
 
@@ -915,7 +802,7 @@ public class SecUserServiceTests {
         given_a_last_connection(userFriendOnlineButOnAnotherProject, builder.given_a_project().getId(), DateUtils.addSeconds(new Date(), -15));
         given_a_last_connection(userFriendOnline, project.getId(), DateUtils.addSeconds(new Date(), -15));
 
-        assertThat(secUserService.getAllFriendsUsersOnline(user, project)).contains(userFriendOnline)
+        assertThat(userService.getAllFriendsUsersOnline(user, project)).contains(userFriendOnline)
                 .doesNotContain(userFriendOnlineButOnAnotherProject);
     }
 
@@ -928,7 +815,7 @@ public class SecUserServiceTests {
         builder.addUserToProject(project, user1.getUsername());
         builder.addUserToProject(project, user2.getUsername());
 
-        String userIds = secUserService.getUsersIdsFromProject(project.getId());
+        String userIds = userService.getUsersIdsFromProject(project.getId());
         String expectedUserIds = user1.getId() + "," + user2.getId() + ",";
 
         assertThat(expectedUserIds).isEqualTo(userIds);
@@ -946,7 +833,7 @@ public class SecUserServiceTests {
 
         PersistentImageConsultation consultation = given_a_persistent_image_consultation(userOnline, builder.given_an_image_instance(project), new Date());
 
-        List<JsonObject> allOnlineUserWithTheirPositions = secUserService.getUsersWithLastActivities(project);
+        List<JsonObject> allOnlineUserWithTheirPositions = userService.getUsersWithLastActivities(project);
         assertThat(allOnlineUserWithTheirPositions).hasSize(1);
         assertThat(allOnlineUserWithTheirPositions.get(0).get("id")).isEqualTo(userOnline.getId());
         assertThat(allOnlineUserWithTheirPositions.get(0).get("lastImageId")).isEqualTo(consultation.getImage());
@@ -972,7 +859,7 @@ public class SecUserServiceTests {
         given_a_persistent_user_position(DateUtils.addSeconds(new Date(), -15), userOnline,
                 builder.given_a_not_persisted_slice_instance(builder.given_an_image_instance(project), builder.given_an_abstract_slice()), UserPositionServiceTests.USER_VIEW);
 
-        List<JsonObject> allOnlineUserWithTheirPositions = secUserService.getAllOnlineUserWithTheirPositions(project);
+        List<JsonObject> allOnlineUserWithTheirPositions = userService.getAllOnlineUserWithTheirPositions(project);
         assertThat(allOnlineUserWithTheirPositions.stream().filter(x -> x.getId().equals(userOnline.getId())).findFirst()).isPresent();
         assertThat(allOnlineUserWithTheirPositions.stream().filter(x -> x.getId().equals(userOnline.getId())).findFirst().get().get("position")).isNotNull();
         assertThat(allOnlineUserWithTheirPositions.stream().filter(x -> x.getId().equals(userOnlineButOnDifferentProject.getId())).findFirst()).isEmpty();
@@ -1000,7 +887,7 @@ public class SecUserServiceTests {
 
         given_a_persistent_image_consultation(userOnline, builder.given_an_image_instance(project), new Date());
 
-        JsonObject data = secUserService.getResumeActivities(project, userOnline);
+        JsonObject data = userService.getResumeActivities(project, userOnline);
 
         assertThat(data.getJSONAttrDate("firstConnection")).isEqualTo(firstConnection.getCreated());
         assertThat(data.getJSONAttrDate("lastConnection")).isEqualTo(lastConnection.getCreated());
@@ -1015,7 +902,7 @@ public class SecUserServiceTests {
     void fill_not_empty_users_ids_from_project_works(){
         User user = builder.given_a_user();
         Project project = builder.given_a_project_with_user(user);
-        String users = secUserService.fillEmptyUserIds(user.getId().toString(), project.getId());
+        String users = userService.fillEmptyUserIds(user.getId().toString(), project.getId());
         assertThat(users).isEqualTo(user.getId().toString());
     }
 
@@ -1025,179 +912,11 @@ public class SecUserServiceTests {
         User user2 = builder.given_a_user();
         Project project = builder.given_a_project_with_user(user1);
         builder.addUserToProject(project, user2.getUsername());
-        String users = secUserService.fillEmptyUserIds("", project.getId());
+        String users = userService.fillEmptyUserIds("", project.getId());
         assertThat(users).isEqualTo(user1.getId().toString() + "," + user2.getId().toString() + ",");
     }
 
-    @Test
-    void add_valid_user() {
-        User user = builder.given_a_not_persisted_user();
-
-
-        CommandResponse commandResponse = secUserService.add(user.toJsonObject().withChange("password", "kikoulol"));
-
-        assertThat(commandResponse).isNotNull();
-        assertThat(commandResponse.getStatus()).isEqualTo(200);
-
-        assertThat(secUserService.findByUsername(user.getUsername())).isPresent();
-    }
-
-    @Test
-    void add_user_with_already_existing_username() {
-        User sameUsername = builder.given_a_user();
-        User user = builder.given_a_not_persisted_user();
-        user.setUsername(sameUsername.getUsername());
-
-        Assertions.assertThrows(AlreadyExistException.class, () -> {
-            secUserService.add(user.toJsonObject());
-        });
-    }
-
-    @Test
-    void add_user_with_already_existing_username_different_case() {
-        User sameUsername = builder.given_a_user();
-        User user = builder.given_a_not_persisted_user();
-        user.setUsername(sameUsername.getUsername().toUpperCase(Locale.ROOT));
-
-        Assertions.assertThrows(AlreadyExistException.class, () -> {
-            secUserService.add(user.toJsonObject());
-        });
-
-        user.setUsername(sameUsername.getUsername().toLowerCase(Locale.ROOT));
-
-        Assertions.assertThrows(AlreadyExistException.class, () -> {
-            secUserService.add(user.toJsonObject());
-        });
-    }
-
-    @Test
-    @Disabled("should we allow this (grails version accept same email)?")
-    void add_user_with_already_existing_email_different_case() {
-        User sameEmail = builder.given_a_user();
-        User user = builder.given_a_not_persisted_user();
-        user.setEmail(sameEmail.getEmail().toUpperCase(Locale.ROOT));
-
-        Assertions.assertThrows(AlreadyExistException.class, () -> {
-            secUserService.add(user.toJsonObject().withChange("password", "password"));
-        });
-
-        user.setEmail(sameEmail.getEmail().toLowerCase(Locale.ROOT));
-
-        Assertions.assertThrows(AlreadyExistException.class, () -> {
-            secUserService.add(user.toJsonObject().withChange("password", "password"));
-        });
-    }
-
-
-    @Test
-    void edit_valid_user_with_success() {
-        User user = builder.given_a_user();
-        String originalPasswordHash = user.getPassword();
-
-        CommandResponse commandResponse = secUserService.update(user, user.toJsonObject().withChange("lastname", "NEW LASTNAME"));
-
-        assertThat(commandResponse).isNotNull();
-        assertThat(commandResponse.getStatus()).isEqualTo(200);
-        Optional<SecUser> edited = secUserService.findByUsername(user.getUsername());
-        assertThat(((User)edited.get()).getLastname()).isEqualTo("NEW LASTNAME");
-        assertThat(((User)edited.get()).getPassword()).isEqualTo(originalPasswordHash);
-    }
-
-
-    @Test
-    void edit_valid_user_with_password() {
-        User user = builder.given_a_user();
-
-        CommandResponse commandResponse = secUserService.update(user, user.toJsonObject().withChange("password", "NEWPASSWORD"));
-
-        assertThat(commandResponse).isNotNull();
-        assertThat(commandResponse.getStatus()).isEqualTo(200);
-        Optional<SecUser> edited = secUserService.findByUsername(user.getUsername());
-
-        assertThat(passwordEncoder.matches("NEWPASSWORD", edited.get().getPassword())).isTrue();
-    }
-
-
-    @Test
-    void delete_valid_user_with_success() {
-        User user = builder.given_a_user();
-
-        CommandResponse commandResponse = secUserService.delete(user, null, null, true);
-
-        assertThat(commandResponse).isNotNull();
-        assertThat(commandResponse.getStatus()).isEqualTo(200);
-        AssertionsForClassTypes.assertThat(secUserService.find(user.getId()).isEmpty());
-    }
-
-    @Autowired
-    StorageService storageService;
-
-    @Disabled("Disable as it throws 'Unexpected end of file from server' randomly")
-    @Test
-    void delete_user_with_dependency() {
-        User user = builder.given_a_user();
-
-        UserAnnotation userAnnotation = builder.given_a_user_annotation();
-        userAnnotation.setUser(user);
-
-        AnnotationTerm annotationTerm = builder.given_an_annotation_term();
-        annotationTerm.setUser(user);
-
-        ImageInstance imageInstance = builder.given_an_image_instance();
-        imageInstance.setUser(user);
-
-        Ontology ontology = builder.given_an_ontology();
-        ontology.setUser(user);
-
-        ReviewedAnnotation reviewedAnnotation = builder.given_a_reviewed_annotation();
-        reviewedAnnotation.setUser(user);
-
-        UploadedFile uploadedFile = builder.given_a_uploaded_file();
-        uploadedFile.setUser(user);
-
-        Storage storage = builder.given_a_storage(user);
-
-        ProjectDefaultLayer projectDefaultLayer =
-                builder.given_a_project_default_layer(builder.given_a_project(), user);
-
-        ProjectRepresentativeUser projectRepresentativeUser =
-                builder.given_a_project_representative_user(builder.given_a_project(), user);
-
-        // add another representative so that we can delete the first one
-        builder.given_a_project_representative_user(projectRepresentativeUser.getProject(), builder.given_superadmin());
-
-        CommandResponse commandResponse = secUserService.delete(user, null, null, true);
-
-        assertThat(commandResponse).isNotNull();
-        assertThat(commandResponse.getStatus()).isEqualTo(200);
-        AssertionsForClassTypes.assertThat(secUserService.find(user.getId()).isEmpty());
-
-        assertThat(entityManager.find(UserAnnotation.class, userAnnotation.getId())).isNull();
-        assertThat(entityManager.find(AnnotationTerm.class, annotationTerm.getId())).isNull();
-        assertThat(entityManager.find(ImageInstance.class, imageInstance.getId())).isNull();
-        assertThat(entityManager.find(Ontology.class, ontology.getId())).isNull();
-        assertThat(entityManager.find(ReviewedAnnotation.class, reviewedAnnotation.getId())).isNull();
-        assertThat(entityManager.find(UploadedFile.class, uploadedFile.getId())).isNull();
-        //assertThat(entityManager.find(Storage.class, storage.getId())).isNull();
-        assertThat(entityManager.find(ProjectDefaultLayer.class, projectDefaultLayer.getId())).isNull();
-        assertThat(entityManager.find(ProjectRepresentativeUser.class, projectRepresentativeUser.getId())).isNull();
-    }
-
-    @Test
-    void delete_user_create_with_service_with_dependency() {
-        User user = builder.given_a_not_persisted_user();
-
-        CommandResponse commandResponse = secUserService.add(user.toJsonObject().withChange("password", "kikoulol"));
-
-        assertThat(commandResponse).isNotNull();
-        assertThat(commandResponse.getStatus()).isEqualTo(200);
-
-        assertThat(secUserService.findByUsername(user.getUsername())).isPresent();
-        user = (User)secUserService.findByUsername(user.getUsername()).get();
-        commandResponse = secUserService.delete(user, null, null, true);
-        assertThat(commandResponse).isNotNull();
-        assertThat(commandResponse.getStatus()).isEqualTo(200);
-    }
+// TODO: IAM Account
 
     @Test
     void add_user_to_project() {
@@ -1207,12 +926,12 @@ public class SecUserServiceTests {
         assertThat(permissionService.hasACLPermission(project, user.getUsername(), ADMINISTRATION)).isFalse();
         assertThat(permissionService.hasACLPermission(project, user.getUsername(), READ)).isFalse();
 
-        secUserService.addUserToProject(user, project, false);
+        userService.addUserToProject(user, project, false);
 
         assertThat(permissionService.hasACLPermission(project, user.getUsername(), ADMINISTRATION)).isFalse();
         assertThat(permissionService.hasACLPermission(project, user.getUsername(), READ)).isTrue();
 
-        secUserService.addUserToProject(user, project, true);
+        userService.addUserToProject(user, project, true);
 
         assertThat(permissionService.hasACLPermission(project, user.getUsername(), ADMINISTRATION)).isTrue();
         assertThat(permissionService.hasACLPermission(project, user.getUsername(), READ)).isTrue();
@@ -1223,19 +942,19 @@ public class SecUserServiceTests {
         User user = builder.given_a_user();
         Project project = builder.given_a_project();
 
-        secUserService.addUserToProject(user, project, true);
+        userService.addUserToProject(user, project, true);
 
         assertThat(permissionService.hasACLPermission(project, user.getUsername(), ADMINISTRATION)).isTrue();
         assertThat(permissionService.hasACLPermission(project, user.getUsername(), READ)).isTrue();
         assertThat(permissionService.hasACLPermission(project.getOntology(), user.getUsername(), READ)).isTrue();
 
-        secUserService.deleteUserFromProject(user, project, true);
+        userService.deleteUserFromProject(user, project, true);
 
         assertThat(permissionService.hasACLPermission(project, user.getUsername(), ADMINISTRATION)).isFalse();
         assertThat(permissionService.hasACLPermission(project, user.getUsername(), READ)).isTrue();
         assertThat(permissionService.hasACLPermission(project.getOntology(), user.getUsername(), READ)).isTrue();
 
-        secUserService.deleteUserFromProject(user, project, false);
+        userService.deleteUserFromProject(user, project, false);
 
         assertThat(permissionService.hasACLPermission(project, user.getUsername(), ADMINISTRATION)).isFalse();
         assertThat(permissionService.hasACLPermission(project, user.getUsername(), READ)).isFalse();
@@ -1248,12 +967,12 @@ public class SecUserServiceTests {
         User user = builder.given_a_user();
         Project project = builder.given_a_project();
 
-        secUserService.addUserToProject(user, project, false);
+        userService.addUserToProject(user, project, false);
 
         assertThat(permissionService.hasACLPermission(project, user.getUsername(), READ)).isTrue();
         assertThat(permissionService.hasACLPermission(project.getOntology(), user.getUsername(), READ)).isTrue();
 
-        secUserService.deleteUserFromProject(user, project, false);
+        userService.deleteUserFromProject(user, project, false);
 
         assertThat(permissionService.hasACLPermission(project, user.getUsername(), READ)).isFalse();
         assertThat(permissionService.hasACLPermission(project.getOntology(), user.getUsername(), READ)).isFalse();
@@ -1265,16 +984,16 @@ public class SecUserServiceTests {
         User user = builder.given_a_user();
         Project project = builder.given_a_project();
 
-        secUserService.addUserToProject(user, project, false);
+        userService.addUserToProject(user, project, false);
 
         assertThat(permissionService.hasACLPermission(project, user.getUsername(), READ)).isTrue();
         assertThat(permissionService.hasACLPermission(project.getOntology(), user.getUsername(), READ)).isTrue();
 
         Project projectWithSameOntology = builder.given_a_project();
         projectWithSameOntology.setOntology(project.getOntology());
-        secUserService.addUserToProject(user, projectWithSameOntology, false);
+        userService.addUserToProject(user, projectWithSameOntology, false);
 
-        secUserService.deleteUserFromProject(user, project, false);
+        userService.deleteUserFromProject(user, project, false);
 
         assertThat(permissionService.hasACLPermission(project, user.getUsername(), READ)).isFalse();
         assertThat(permissionService.hasACLPermission(project.getOntology(), user.getUsername(), READ)).isTrue();
@@ -1289,12 +1008,12 @@ public class SecUserServiceTests {
         assertThat(permissionService.hasACLPermission(storage, user.getUsername(), ADMINISTRATION)).isFalse();
         assertThat(permissionService.hasACLPermission(storage, user.getUsername(), READ)).isFalse();
 
-        secUserService.addUserToStorage(user, storage);
+        userService.addUserToStorage(user, storage);
 
         assertThat(permissionService.hasACLPermission(storage, user.getUsername(), ADMINISTRATION)).isFalse();
         assertThat(permissionService.hasACLPermission(storage, user.getUsername(), READ)).isTrue();
 
-        secUserService.deleteUserFromStorage(user, storage);
+        userService.deleteUserFromStorage(user, storage);
 
         assertThat(permissionService.hasACLPermission(storage, user.getUsername(), ADMINISTRATION)).isFalse();
         assertThat(permissionService.hasACLPermission(storage, user.getUsername(), READ)).isFalse();
