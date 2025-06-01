@@ -51,8 +51,6 @@ import be.cytomine.service.ontology.ReviewedAnnotationService;
 import be.cytomine.service.search.ProjectSearchExtension;
 import be.cytomine.service.security.UserService;
 import be.cytomine.service.search.RetrievalService;
-import be.cytomine.service.security.SecUserSecRoleService;
-import be.cytomine.service.security.SecUserService;
 import be.cytomine.service.security.SecurityACLService;
 import be.cytomine.service.utils.TaskService;
 import be.cytomine.utils.*;
