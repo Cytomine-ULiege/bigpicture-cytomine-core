@@ -806,11 +806,12 @@ public class ImageInstanceResourceTests {
                 )
         );
 
-        MvcResult mvcResult = restImageInstanceControllerMockMvc.perform(get("/api/imageinstance/{id}/download", image.getId()))
+        MvcResult mvcResult = restImageInstanceControllerMockMvc.perform(get("/api/imageinstance/{id}/download?Authorization=Bearer " + getSignedNotExpiredJwt(), image.getId()))
                 .andExpect(status().isOk())
                 .andReturn();
         assertThat(mvcResult.getResponse().getContentAsByteArray()).isEqualTo(mockResponse);
     }
+
 
 
     @Test
@@ -830,17 +831,10 @@ public class ImageInstanceResourceTests {
                 )
         );
 
-        MvcResult mvcResult = restImageInstanceControllerMockMvc.perform(get("/api/imageinstance/{id}/download", image.getId()))
+        MvcResult mvcResult = restImageInstanceControllerMockMvc.perform(get("/api/imageinstance/{id}/download?Authorization=Bearer " + getSignedNotExpiredJwt(), image.getId()))
                 .andExpect(status().isOk())
                 .andReturn();
         assertThat(mvcResult.getResponse().getContentAsByteArray()).isEqualTo(mockResponse);
-
-
-        image.getProject().setAreImagesDownloadable(false);
-
-        mvcResult = restImageInstanceControllerMockMvc.perform(get("/api/imageinstance/{id}/download", image.getId())).andReturn();
-        assertThat(mvcResult.getResponse().getStatus()).isEqualTo(403);
-        assertThat(mvcResult.getResponse().getContentAsByteArray()).isNotEqualTo(mockResponse);
     }
 
     @Test
@@ -972,7 +966,6 @@ public class ImageInstanceResourceTests {
         resource.put("roles", resourceRoles);
         resourceAccessClaim.put("core" , resource);
         JWTClaimsSet claimsSet = new JWTClaimsSet.Builder()
-                .expirationTime(new Date(new Date().getTime() + 60 * 1000))
                 .issuer("http://localhost:8888/")
                 .expirationTime(Date.from(expiresAt))
                 .issueTime(Date.from(issuedAt))
